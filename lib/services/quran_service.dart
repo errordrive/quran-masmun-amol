@@ -1,6 +1,7 @@
 // Loads the bundled Quran JSON (assets/quran.json) once and caches it.
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import '../data/surah_names_bn.dart';
 import '../models/models.dart';
 
 class QuranService {
@@ -63,10 +64,13 @@ class QuranService {
   List<Surah> searchSurahs(List<Surah> surahs, String query) {
     final q = query.trim().toLowerCase();
     if (q.isEmpty) return surahs;
+    final raw = query.trim();
     return surahs.where((s) {
       return s.englishName.toLowerCase().contains(q) ||
           s.englishNameTranslation.toLowerCase().contains(q) ||
-          s.name.contains(query.trim()) ||
+          s.name.contains(raw) ||
+          bnSurahName(s.number).contains(raw) ||
+          bnSurahMeaning(s.number).contains(raw) ||
           s.number.toString() == q;
     }).toList();
   }
