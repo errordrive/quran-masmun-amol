@@ -1,7 +1,8 @@
-// Quran & Masnun Amol — entry point.
-// Shell: floating rounded NavigationBar with Home | Prayer | Me.
-// The bar is visible on the three main tabs only; pushed sub-screens
-// (reader, payment, etc.) cover it, and Android back returns to the parent.
+// Quran & Masnun Amol — entry point (v1.1).
+// Each main tab (Home | Prayer | Me) owns its own AppScaffold with the
+// floating pill MainNavBar. Sub-screens are pushed onto the root
+// Navigator as plain AppScaffolds, so the bottom bar NEVER appears on
+// them. Android back on a main tab returns to Home, then exits.
 import 'package:flutter/material.dart';
 import 'screens/home.dart';
 import 'screens/me.dart';
@@ -9,6 +10,7 @@ import 'screens/prayer.dart';
 import 'services/app_state.dart';
 import 'services/navigation.dart';
 import 'theme.dart';
+import 'widgets/common.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,10 +48,21 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
 
+  // Each tab owns its scaffold + pill bar; pushed sub-screens cover the
+  // whole screen and carry no bar.
   static const List<Widget> _tabs = [
-    HomeScreen(),
-    PrayerScreen(),
-    MeScreen(),
+    AppScaffold(
+      bottomNavigationBar: MainNavBar(),
+      body: SafeArea(child: HomeScreen()),
+    ),
+    AppScaffold(
+      bottomNavigationBar: MainNavBar(),
+      body: SafeArea(child: PrayerScreen()),
+    ),
+    AppScaffold(
+      bottomNavigationBar: MainNavBar(),
+      body: SafeArea(child: MeScreen()),
+    ),
   ];
 
   @override
@@ -80,41 +93,7 @@ class _MainShellState extends State<MainShell> {
           currentTab.value = 0;
         }
       },
-      child: Scaffold(
-        body: SafeArea(
-          child: IndexedStack(index: _index, children: _tabs),
-        ),
-        bottomNavigationBar: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: NavigationBar(
-              selectedIndex: _index,
-              onDestinationSelected: (i) {
-                setState(() => _index = i);
-                currentTab.value = i;
-              },
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home),
-                  label: 'Home',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.access_time_outlined),
-                  selectedIcon: Icon(Icons.access_time),
-                  label: 'Prayer',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.person_outline),
-                  selectedIcon: Icon(Icons.person),
-                  label: 'Me',
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      child: IndexedStack(index: _index, children: _tabs),
     );
   }
 }
