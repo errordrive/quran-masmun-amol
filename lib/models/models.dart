@@ -48,18 +48,22 @@ class Surah {
 class Dua {
   final String id;
   final String title;
+  final String banglaTitle;
   final String category; // 'morning' | 'daily'
   final String arabic;
   final String transliteration;
   final String meaning;
+  final String banglaMeaning;
   final String reference;
   const Dua({
     required this.id,
     required this.title,
+    required this.banglaTitle,
     required this.category,
     required this.arabic,
     required this.transliteration,
     required this.meaning,
+    required this.banglaMeaning,
     required this.reference,
   });
 }
@@ -70,6 +74,7 @@ class Hadith {
   final String number;
   final String arabic;
   final String english;
+  final String banglaMeaning;
   final String narrator;
   final String grade;
   const Hadith({
@@ -78,6 +83,7 @@ class Hadith {
     required this.number,
     required this.arabic,
     required this.english,
+    required this.banglaMeaning,
     required this.narrator,
     required this.grade,
   });
@@ -164,10 +170,12 @@ class AsmaulHusna {
   final String arabic;
   final String transliteration;
   final String meaning;
+  final String banglaMeaning;
   const AsmaulHusna({
     required this.number,
     required this.arabic,
     required this.transliteration,
     required this.meaning,
+    required this.banglaMeaning,
   });
 }
