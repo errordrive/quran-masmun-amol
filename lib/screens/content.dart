@@ -6,10 +6,12 @@ import 'package:flutter/services.dart';
 import '../data/asmaul_husna.dart';
 import '../data/duas.dart';
 import '../data/hadith.dart';
+import '../data/surah_names_bn.dart';
 import '../data/tasbih.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/quran_service.dart';
+import '../services/strings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'quran.dart';
@@ -29,17 +31,18 @@ class CategoryListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bn = AppState.instance.isBangla;
     if (duas.isEmpty) {
-      return Scaffold(
+      return AppScaffold(
         appBar: AppBar(title: Text(title)),
-        body: const EmptyState(
+        body: EmptyState(
           icon: Icons.menu_book,
-          title: 'No duas yet',
-          subtitle: 'Nothing has been added to this category.',
+          title: tr('no_duas_yet'),
+          subtitle: tr('no_duas_sub'),
         ),
       );
     }
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: Text(title)),
       body: ListView.builder(
         itemCount: duas.length,
@@ -47,8 +50,8 @@ class CategoryListScreen extends StatelessWidget {
         itemBuilder: (context, i) {
           final d = duas[i];
           return ListTile(
-            title: Text(d.title,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+            title: Text(bn ? d.banglaTitle : d.title,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: Text(d.reference,
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             trailing: const Icon(Icons.chevron_right),
@@ -72,24 +75,27 @@ class DuaDetailScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
-        return Scaffold(
+        final bn = state.isBangla;
+        final title = bn ? dua.banglaTitle : dua.title;
+        final meaning = bn ? dua.banglaMeaning : dua.meaning;
+        final fav = state.favoriteDuas.contains(dua.id);
+        return AppScaffold(
           appBar: AppBar(
-            title: Text(dua.title),
+            title: Text(title),
             actions: [
-              IconButton(
-                icon: Icon(
-                  state.favoriteDuas.contains(dua.id)
-                      ? Icons.favorite
-                      : Icons.favorite_border,
-                  color: primaryGreen,
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: TonalIconButton(
+                  icon: fav ? Icons.favorite : Icons.favorite_border,
+                  filled: fav,
+                  tooltip: tr('favorite'),
+                  onPressed: () => state.toggleFavoriteDua(dua.id),
                 ),
-                tooltip: 'Favorite',
-                onPressed: () => state.toggleFavoriteDua(dua.id),
               ),
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             children: [
               Text(dua.arabic,
                   textAlign: TextAlign.right,
@@ -97,42 +103,27 @@ class DuaDetailScreen extends StatelessWidget {
                   style:
                       TextStyle(fontSize: state.arabicSize, height: 2.0)),
               const SizedBox(height: 16),
-              const Text('Transliteration',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(tr('transliteration'),
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
               Text(dua.transliteration,
                   style: const TextStyle(fontStyle: FontStyle.italic)),
               const SizedBox(height: 16),
-              const Text('Meaning',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(tr('meaning'),
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
-              Text(dua.meaning),
+              Text(meaning, style: const TextStyle(fontSize: 15, height: 1.6)),
               const SizedBox(height: 16),
-              Text('Reference: ${dua.reference}',
+              Text('${tr('reference')}: ${dua.reference}',
                   style: TextStyle(
                       fontSize: 13,
                       color: Theme.of(context).colorScheme.onSurfaceVariant)),
               const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => copyText(context,
-                          '${dua.arabic}\n${dua.meaning}', dua.title),
-                      icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('Copy'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => shareText(context,
-                          '${dua.title}\n${dua.arabic}\n${dua.meaning}'),
-                      icon: const Icon(Icons.share, size: 18),
-                      label: const Text('Share'),
-                    ),
-                  ),
-                ],
+              CopyShareRow(
+                onCopy: () =>
+                    copyText(context, '${dua.arabic}\n$meaning', title),
+                onShare: () =>
+                    shareText(context, '$title\n${dua.arabic}\n$meaning'),
               ),
             ],
           ),
@@ -149,8 +140,8 @@ class HadithCollectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Hadith')),
+    return AppScaffold(
+      appBar: AppBar(title: Text(tr('hadith'))),
       body: ListView.builder(
         itemCount: hadithCollections.length,
         padding: const EdgeInsets.only(bottom: 16),
@@ -164,14 +155,14 @@ class HadithCollectionScreen extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: primaryGreen.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
               child:
                   const Icon(Icons.auto_stories, color: primaryGreen),
             ),
             title: Text(name,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text('$count hadiths'),
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: Text('$count ${tr('hadiths_count')}'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
@@ -191,13 +182,14 @@ class HadithListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final list = hadithsByCollection(collection);
+    final bn = AppState.instance.isBangla;
     if (list.isEmpty) {
-      return Scaffold(
+      return AppScaffold(
         appBar: AppBar(title: Text(collection)),
-        body: const EmptyState(
+        body: EmptyState(
           icon: Icons.auto_stories,
-          title: 'No hadiths yet',
-          subtitle: 'Nothing has been added to this collection.',
+          title: tr('no_hadiths_yet'),
+          subtitle: tr('no_hadiths_sub'),
         ),
       );
     }
@@ -206,7 +198,7 @@ class HadithListScreen extends StatelessWidget {
     for (final h in list) {
       if (!books.contains(h.book)) books.add(h.book);
     }
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: Text(collection)),
       body: ListView.builder(
         itemCount: books.length,
@@ -222,14 +214,14 @@ class HadithListScreen extends StatelessWidget {
                 child: Text(book,
                     style: const TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                         color: primaryGreen)),
               ),
               for (final h in inBook)
                 ListTile(
-                  title: Text('Hadith ${h.number}',
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text(h.english,
+                  title: Text('${tr('hadith_word')} ${h.number}',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text(bn ? h.banglaMeaning : h.english,
                       maxLines: 2, overflow: TextOverflow.ellipsis),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.of(context).push(
@@ -257,24 +249,26 @@ class HadithDetailScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
-        return Scaffold(
+        final bn = state.isBangla;
+        final meaning = bn ? hadith.banglaMeaning : hadith.english;
+        final fav = state.favoriteHadiths.contains(_key);
+        return AppScaffold(
           appBar: AppBar(
             title: Text('${hadith.collection} ${hadith.number}'),
             actions: [
-              IconButton(
-                icon: Icon(
-                  state.favoriteHadiths.contains(_key)
-                      ? Icons.favorite
-                      : Icons.favorite_border,
-                  color: primaryGreen,
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: TonalIconButton(
+                  icon: fav ? Icons.favorite : Icons.favorite_border,
+                  filled: fav,
+                  tooltip: tr('favorite'),
+                  onPressed: () => state.toggleFavoriteHadith(_key),
                 ),
-                tooltip: 'Favorite',
-                onPressed: () => state.toggleFavoriteHadith(_key),
               ),
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             children: [
               Row(
                 children: [
@@ -290,41 +284,33 @@ class HadithDetailScreen extends StatelessWidget {
                   style:
                       TextStyle(fontSize: state.arabicSize, height: 2.0)),
               const SizedBox(height: 16),
-              const Text('Translation',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(tr('translation'),
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
-              Text(hadith.english),
+              Text(meaning, style: const TextStyle(fontSize: 15, height: 1.6)),
+              if (bn) ...[
+                const SizedBox(height: 12),
+                Text(hadith.english,
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              ],
               const SizedBox(height: 16),
-              Text('Narrated by ${hadith.narrator}',
+              Text('${tr('narrated_by')} ${hadith.narrator}',
                   style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant)),
-              Text('Reference: ${hadith.collection} ${hadith.number}',
+              Text('${tr('reference')}: ${hadith.collection} ${hadith.number}',
                   style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant)),
               const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => copyText(
-                          context,
-                          '${hadith.arabic}\n${hadith.english}\n(${hadith.collection} ${hadith.number})',
-                          'Hadith'),
-                      icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('Copy'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => shareText(
-                          context,
-                          '${hadith.arabic}\n${hadith.english}\n(${hadith.collection} ${hadith.number})'),
-                      icon: const Icon(Icons.share, size: 18),
-                      label: const Text('Share'),
-                    ),
-                  ),
-                ],
+              CopyShareRow(
+                onCopy: () => copyText(
+                    context,
+                    '${hadith.arabic}\n$meaning\n(${hadith.collection} ${hadith.number})',
+                    tr('hadith_word')),
+                onShare: () => shareText(
+                    context,
+                    '${hadith.arabic}\n$meaning\n(${hadith.collection} ${hadith.number})'),
               ),
             ],
           ),
@@ -341,8 +327,9 @@ class AsmaulHusnaScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Asmaul Husna')),
+    final bn = AppState.instance.isBangla;
+    return AppScaffold(
+      appBar: AppBar(title: Text(tr('asmaul_husna'))),
       body: ListView.builder(
         itemCount: asmaulHusna.length,
         padding: const EdgeInsets.only(bottom: 16),
@@ -355,15 +342,15 @@ class AsmaulHusnaScreen extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: primaryGreen.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Text('${name.number}',
                   style: const TextStyle(
                       fontWeight: FontWeight.w700, color: primaryGreen)),
             ),
             title: Text(name.transliteration,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(name.meaning),
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: Text(bn ? name.banglaMeaning : name.meaning),
             trailing: Text(name.arabic,
                 style: const TextStyle(fontSize: 22, color: primaryGreen)),
             onTap: () => _showNameActions(context, name),
@@ -374,15 +361,17 @@ class AsmaulHusnaScreen extends StatelessWidget {
   }
 
   Future<void> _showNameActions(BuildContext context, AsmaulHusna name) async {
+    final bn = AppState.instance.isBangla;
+    final meaning = bn ? name.banglaMeaning : name.meaning;
     await showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (sheetContext) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -391,38 +380,23 @@ class AsmaulHusnaScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(name.transliteration,
                     style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w700)),
-                Text(name.meaning,
+                        fontSize: 18, fontWeight: FontWeight.w800)),
+                Text(meaning,
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.of(sheetContext).pop();
-                          copyText(context,
-                              '${name.arabic} — ${name.transliteration} (${name.meaning})',
-                              name.transliteration);
-                        },
-                        icon: const Icon(Icons.copy, size: 18),
-                        label: const Text('Copy'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.of(sheetContext).pop();
-                          shareText(context,
-                              '${name.arabic}\n${name.transliteration} — ${name.meaning}');
-                        },
-                        icon: const Icon(Icons.share, size: 18),
-                        label: const Text('Share'),
-                      ),
-                    ),
-                  ],
+                CopyShareRow(
+                  onCopy: () {
+                    Navigator.of(sheetContext).pop();
+                    copyText(context,
+                        '${name.arabic} — ${name.transliteration} ($meaning)',
+                        name.transliteration);
+                  },
+                  onShare: () {
+                    Navigator.of(sheetContext).pop();
+                    shareText(context,
+                        '${name.arabic}\n${name.transliteration} — $meaning');
+                  },
                 ),
               ],
             ),
@@ -450,15 +424,21 @@ class TasbihListScreen extends StatelessWidget {
         final last7 = state.last7TasbihTotals();
         final maxCount =
             last7.map((e) => e.count).fold<int>(0, (a, b) => a > b ? a : b);
-        const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        return Scaffold(
+        final bn = state.isBangla;
+        final weekdays = bn
+            ? ['সোম', 'মঙ্গল', 'বুধ', 'বৃহ', 'শুক্র', 'শনি', 'রবি']
+            : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        return AppScaffold(
           appBar: AppBar(
-            title: const Text('Tasbih'),
+            title: Text(tr('tasbih')),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.add),
-                tooltip: 'Add custom tasbih',
-                onPressed: () => _showAddCustom(context),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: TonalIconButton(
+                  icon: Icons.add,
+                  tooltip: tr('add_custom_tasbih'),
+                  onPressed: () => _showAddCustom(context),
+                ),
               ),
             ],
           ),
@@ -469,7 +449,7 @@ class TasbihListScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     child: Column(
                       children: [
                         Row(
@@ -478,12 +458,13 @@ class TasbihListScreen extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text("Today's total",
-                                      style: TextStyle(color: Colors.grey)),
+                                  Text(tr('todays_total'),
+                                      style:
+                                          const TextStyle(color: Colors.grey)),
                                   Text('$todayTotal',
                                       style: const TextStyle(
                                           fontSize: 24,
-                                          fontWeight: FontWeight.w700,
+                                          fontWeight: FontWeight.w800,
                                           color: primaryGreen)),
                                 ],
                               ),
@@ -497,15 +478,16 @@ class TasbihListScreen extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  const Text('Daily streak',
-                                      style: TextStyle(color: Colors.grey)),
+                                  Text(tr('daily_streak'),
+                                      style:
+                                          const TextStyle(color: Colors.grey)),
                                   Text(
                                       streak == 0
-                                          ? 'No streak yet'
-                                          : '$streak day${streak == 1 ? '' : 's'}',
+                                          ? tr('no_streak_yet')
+                                          : '$streak ${streak == 1 ? tr('day') : tr('days')}',
                                       style: const TextStyle(
                                           fontSize: 20,
-                                          fontWeight: FontWeight.w700,
+                                          fontWeight: FontWeight.w800,
                                           color: primaryGreen)),
                                 ],
                               ),
@@ -572,8 +554,9 @@ class TasbihListScreen extends StatelessWidget {
                             const Icon(Icons.fingerprint, color: primaryGreen),
                       ),
                       title: Text(t.englishName,
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text('Target: ${t.target} · Count: $count'),
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Text(
+                          '${tr('target')}: ${t.target} · ${tr('count')}: $count'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -584,7 +567,7 @@ class TasbihListScreen extends StatelessWidget {
                             IconButton(
                               icon:
                                   const Icon(Icons.delete_outline, size: 20),
-                              tooltip: 'Delete',
+                              tooltip: tr('delete'),
                               onPressed: () =>
                                   state.removeCustomTasbih(t.id),
                             )
@@ -616,7 +599,7 @@ class TasbihListScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Add custom tasbih'),
+          title: Text(tr('add_custom_tasbih')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -625,26 +608,26 @@ class TasbihListScreen extends StatelessWidget {
                 textAlign: TextAlign.right,
                 textDirection: TextDirection.rtl,
                 decoration:
-                    const InputDecoration(labelText: 'Arabic name'),
+                    InputDecoration(labelText: tr('arabic_name')),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: englishCtrl,
                 decoration:
-                    const InputDecoration(labelText: 'English name'),
+                    InputDecoration(labelText: tr('english_name')),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: targetCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Target count'),
+                decoration: InputDecoration(labelText: tr('target_count')),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
+              child: Text(tr('cancel')),
             ),
             FilledButton(
               onPressed: () {
@@ -652,15 +635,15 @@ class TasbihListScreen extends StatelessWidget {
                 final english = englishCtrl.text.trim();
                 final arabic = arabicCtrl.text.trim();
                 if (english.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Please enter an English name')));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(tr('enter_english_name'))));
                   return;
                 }
                 state.addCustomTasbih(
                     arabic.isEmpty ? english : arabic, english, target);
                 Navigator.of(dialogContext).pop();
               },
-              child: const Text('Add'),
+              child: Text(tr('add')),
             ),
           ],
         );
@@ -677,6 +660,8 @@ class TasbihCounterScreen extends StatefulWidget {
 }
 
 class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
+  bool _pressed = false;
+
   @override
   Widget build(BuildContext context) {
     final state = AppState.instance;
@@ -685,7 +670,9 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
       builder: (context, _) {
         final count = state.tasbihCount(widget.item.id);
         final done = count >= widget.item.target;
-        return Scaffold(
+        final progress =
+            (count / widget.item.target).clamp(0.0, 1.0).toDouble();
+        return AppScaffold(
           appBar: AppBar(title: Text(widget.item.englishName)),
           body: Padding(
             padding: const EdgeInsets.all(24),
@@ -696,13 +683,16 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
                     style: const TextStyle(
                         fontSize: 30, color: primaryGreen, height: 1.8)),
                 const SizedBox(height: 8),
-                Text('${widget.item.englishName} · Target ${widget.item.target}',
+                Text('${widget.item.englishName} · ${tr('target')} ${widget.item.target}',
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 32),
                 Expanded(
                   child: Center(
                     child: GestureDetector(
+                      onTapDown: (_) => setState(() => _pressed = true),
+                      onTapUp: (_) => setState(() => _pressed = false),
+                      onTapCancel: () => setState(() => _pressed = false),
                       onTap: () {
                         final next = count + 1;
                         state.setTasbihCount(widget.item.id, next);
@@ -715,39 +705,69 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
                           }
                         }
                       },
-                      child: Container(
-                        width: 260,
-                        height: 260,
-                        decoration: BoxDecoration(
-                          color: done
-                              ? primaryGreen
-                              : primaryGreen.withOpacity(0.15),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: primaryGreen, width: 2),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                      child: AnimatedScale(
+                        scale: _pressed ? 0.94 : 1.0,
+                        duration: const Duration(milliseconds: 120),
+                        child: Stack(
+                          alignment: Alignment.center,
                           children: [
-                            Text('$count',
-                                style: TextStyle(
-                                    fontSize: 64,
-                                    fontWeight: FontWeight.w700,
-                                    color: done
-                                        ? Colors.white
-                                        : primaryGreen)),
-                            Text('/ ${widget.item.target}',
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    color: done
-                                        ? Colors.white70
-                                        : Colors.grey)),
-                            const SizedBox(height: 8),
-                            Text(done ? 'Completed' : 'Tap to count',
-                                style: TextStyle(
-                                    color: done
-                                        ? Colors.white
-                                        : primaryGreen)),
+                            // Thin progress ring around the circle.
+                            SizedBox(
+                              width: 284,
+                              height: 284,
+                              child: CircularProgressIndicator(
+                                value: progress,
+                                strokeWidth: 6,
+                                backgroundColor:
+                                    primaryGreen.withOpacity(0.12),
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                    primaryGreen),
+                              ),
+                            ),
+                            Container(
+                              width: 260,
+                              height: 260,
+                              decoration: BoxDecoration(
+                                color: done
+                                    ? primaryGreen
+                                    : primaryGreen.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: primaryGreen, width: 2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        primaryGreen.withOpacity(0.25),
+                                    blurRadius: 28,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text('$count',
+                                      style: TextStyle(
+                                          fontSize: 64,
+                                          fontWeight: FontWeight.w800,
+                                          color: done
+                                              ? Colors.white
+                                              : primaryGreen)),
+                                  Text('/ ${widget.item.target}',
+                                      style: TextStyle(
+                                          fontSize: 18,
+                                          color: done
+                                              ? Colors.white70
+                                              : Colors.grey)),
+                                  const SizedBox(height: 8),
+                                  Text(done ? tr('completed') : tr('tap_to_count'),
+                                      style: TextStyle(
+                                          color: done
+                                              ? Colors.white
+                                              : primaryGreen)),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -757,24 +777,25 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton.icon(
+                      child: TonalButton(
+                        label: tr('reset'),
+                        icon: Icons.refresh,
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (d) => AlertDialog(
-                              title: const Text('Reset counter?'),
-                              content: const Text(
-                                  'Your current count for this tasbih will go back to 0.'),
+                              title: Text(tr('reset_counter_q')),
+                              content: Text(tr('reset_counter_sub')),
                               actions: [
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.of(d).pop(false),
-                                  child: const Text('Cancel'),
+                                  child: Text(tr('cancel')),
                                 ),
                                 FilledButton(
                                   onPressed: () =>
                                       Navigator.of(d).pop(true),
-                                  child: const Text('Reset'),
+                                  child: Text(tr('reset')),
                                 ),
                               ],
                             ),
@@ -783,23 +804,19 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
                             state.resetTasbih(widget.item.id);
                           }
                         },
-                        icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text('Reset'),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: OutlinedButton.icon(
+                      child: TonalButton(
+                        label: state.vibrationOn
+                            ? tr('vibration_on')
+                            : tr('vibration_off'),
+                        icon: state.vibrationOn
+                            ? Icons.vibration
+                            : Icons.volume_off,
                         onPressed: () =>
                             state.setVibration(!state.vibrationOn),
-                        icon: Icon(
-                            state.vibrationOn
-                                ? Icons.vibration
-                                : Icons.volume_off,
-                            size: 18),
-                        label: Text(state.vibrationOn
-                            ? 'Vibration on'
-                            : 'Vibration off'),
                       ),
                     ),
                   ],
@@ -869,9 +886,12 @@ class _SearchScreenState extends State<SearchScreen> {
       });
       return;
     }
+    final rawQ = raw.trim();
     final surahs = _allSurahs.where((s) {
       if (s.englishName.toLowerCase().contains(q) ||
-          s.englishNameTranslation.toLowerCase().contains(q)) {
+          s.englishNameTranslation.toLowerCase().contains(q) ||
+          bnSurahName(s.number).contains(rawQ) ||
+          bnSurahMeaning(s.number).contains(rawQ)) {
         return true;
       }
       // Search ayah translations.
@@ -882,13 +902,16 @@ class _SearchScreenState extends State<SearchScreen> {
     }).toList();
     final hadithList = hadiths.where((h) {
       return h.english.toLowerCase().contains(q) ||
+          h.banglaMeaning.contains(rawQ) ||
           h.collection.toLowerCase().contains(q) ||
           h.book.toLowerCase().contains(q) ||
           h.narrator.toLowerCase().contains(q);
     }).toList();
     final duaList = duas.where((d) {
       return d.title.toLowerCase().contains(q) ||
+          d.banglaTitle.contains(rawQ) ||
           d.meaning.toLowerCase().contains(q) ||
+          d.banglaMeaning.contains(rawQ) ||
           d.transliteration.toLowerCase().contains(q) ||
           d.reference.toLowerCase().contains(q);
     }).toList();
@@ -905,13 +928,14 @@ class _SearchScreenState extends State<SearchScreen> {
     final hasResults = _surahResults.isNotEmpty ||
         _hadithResults.isNotEmpty ||
         _duaResults.isNotEmpty;
-    return Scaffold(
+    final bn = AppState.instance.isBangla;
+    return AppScaffold(
       appBar: AppBar(
         title: TextField(
           controller: _controller,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Search Quran, Hadith, Dua',
+          decoration: InputDecoration(
+            hintText: tr('search_hint'),
             border: InputBorder.none,
           ),
           onChanged: _onQueryChanged,
@@ -930,30 +954,31 @@ class _SearchScreenState extends State<SearchScreen> {
       body: _loadingSurahs
           ? const LoadingState()
           : !_searched
-              ? const EmptyState(
+              ? EmptyState(
                   icon: Icons.search,
-                  title: 'Search the app',
-                  subtitle:
-                      'Type at least 2 characters to search the Quran, Hadith and duas. Everything is searched on your device.',
+                  title: tr('search_intro_title'),
+                  subtitle: tr('search_intro_sub'),
                 )
               : !hasResults
-                  ? const EmptyState(
+                  ? EmptyState(
                       icon: Icons.search_off,
-                      title: 'No results found',
-                      subtitle: 'Try a different word or spelling.',
+                      title: tr('search_no_results'),
+                      subtitle: tr('search_no_results_sub'),
                     )
                   : ListView(
                       padding: const EdgeInsets.only(bottom: 16),
                       children: [
                         if (_surahResults.isNotEmpty) ...[
-                          _groupHeader('Quran', _surahResults.length),
+                          _groupHeader(tr('quran'), _surahResults.length),
                           for (final s in _surahResults.take(5))
                             ListTile(
                               leading: const Icon(Icons.menu_book,
                                   color: primaryGreen),
-                              title: Text(s.englishName),
+                              title: Text(bn
+                                  ? bnSurahName(s.number)
+                                  : s.englishName),
                               subtitle: Text(
-                                  '${s.englishNameTranslation} · ${s.ayahs.length} ayahs'),
+                                  '${bn ? bnSurahMeaning(s.number) : s.englishNameTranslation} · ${s.ayahs.length} ${tr('ayahs')}'),
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute(
                                     builder: (_) => QuranReaderScreen(
@@ -962,14 +987,15 @@ class _SearchScreenState extends State<SearchScreen> {
                             ),
                         ],
                         if (_hadithResults.isNotEmpty) ...[
-                          _groupHeader('Hadith', _hadithResults.length),
+                          _groupHeader(tr('hadith'), _hadithResults.length),
                           for (final h in _hadithResults.take(5))
                             ListTile(
                               leading: const Icon(Icons.auto_stories,
                                   color: primaryGreen),
                               title: Text(
                                   '${h.collection} ${h.number}'),
-                              subtitle: Text(h.english,
+                              subtitle: Text(
+                                  bn ? h.banglaMeaning : h.english,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis),
                               onTap: () => Navigator.of(context).push(
@@ -980,12 +1006,12 @@ class _SearchScreenState extends State<SearchScreen> {
                             ),
                         ],
                         if (_duaResults.isNotEmpty) ...[
-                          _groupHeader('Dua', _duaResults.length),
+                          _groupHeader(tr('dua_group'), _duaResults.length),
                           for (final d in _duaResults.take(5))
                             ListTile(
                               leading: const Icon(Icons.favorite,
                                   color: primaryGreen),
-                              title: Text(d.title),
+                              title: Text(bn ? d.banglaTitle : d.title),
                               subtitle: Text(d.reference,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis),
