@@ -3,9 +3,11 @@
 // ayah Copy/Share/Bookmark, and auto-saved last-read position.
 import 'package:flutter/material.dart';
 import '../data/juz.dart';
+import '../data/surah_names_bn.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/quran_service.dart';
+import '../services/strings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 
@@ -55,17 +57,17 @@ class _QuranListScreenState extends State<QuranListScreen>
     final counts = {for (final s in _surahs) s.number: s.ayahs.length};
     final juzList = buildJuzList(counts);
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
-        title: const Text('Quran'),
+        title: Text(tr('quran')),
         bottom: TabBar(
           controller: _tabController,
           labelColor: primaryGreen,
           unselectedLabelColor: Colors.grey,
           indicatorColor: primaryGreen,
-          tabs: const [
-            Tab(text: 'Surah'),
-            Tab(text: 'Juz'),
+          tabs: [
+            Tab(text: tr('surah')),
+            Tab(text: tr('juz')),
           ],
         ),
       ),
@@ -76,19 +78,20 @@ class _QuranListScreenState extends State<QuranListScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const EmptyState(
+                      EmptyState(
                         icon: Icons.error_outline,
-                        title: 'Quran data could not be loaded',
-                        subtitle:
-                            'The bundled Quran file is missing or damaged. Please reinstall the app.',
+                        title: tr('quran_load_failed'),
+                        subtitle: tr('quran_load_failed_sub'),
                       ),
                       const SizedBox(height: 16),
-                      FilledButton(
+                      PrimaryButton(
+                        label: tr('retry'),
+                        icon: Icons.refresh,
+                        expanded: false,
                         onPressed: () {
                           setState(() => _loading = true);
                           _load();
                         },
-                        child: const Text('Retry'),
                       ),
                     ],
                   ),
@@ -98,9 +101,9 @@ class _QuranListScreenState extends State<QuranListScreen>
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                       child: TextField(
-                        decoration: const InputDecoration(
-                          hintText: 'Search surah by name or number',
-                          prefixIcon: Icon(Icons.search),
+                        decoration: InputDecoration(
+                          hintText: tr('search_surah_hint'),
+                          prefixIcon: const Icon(Icons.search),
                         ),
                         onChanged: (v) => setState(() => _query = v),
                       ),
@@ -126,7 +129,7 @@ class _QuranListScreenState extends State<QuranListScreen>
                             },
                             icon: const Icon(Icons.bookmark, size: 18),
                             label: Text(
-                                'Continue reading: ${state.lastSurah == 0 ? '' : _surahName(_surahs, state.lastSurah)} · Ayah ${state.lastAyah}'),
+                                '${tr('continue_reading')}: ${_surahDisplayName(_surahs, state.lastSurah)} · ${tr('ayah')} ${state.lastAyah}'),
                           ),
                         ),
                       ),
@@ -148,11 +151,15 @@ class _QuranListScreenState extends State<QuranListScreen>
     );
   }
 
-  String _surahName(List<Surah> surahs, int number) {
+  String _surahDisplayName(List<Surah> surahs, int number) {
     for (final s in surahs) {
-      if (s.number == number) return s.englishName;
+      if (s.number == number) {
+        return AppState.instance.isBangla
+            ? bnSurahName(number)
+            : s.englishName;
+      }
     }
-    return 'Surah $number';
+    return '${tr('surah')} $number';
   }
 }
 
@@ -168,13 +175,14 @@ class _SurahTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bn = AppState.instance.isBangla;
     if (surahs.isEmpty) {
       return EmptyState(
         icon: Icons.search_off,
-        title: 'No surah found',
+        title: tr('no_surah_found'),
         subtitle: query.isEmpty
-            ? 'The surah list is empty.'
-            : 'No surah matches "$query".',
+            ? tr('surah_list_empty')
+            : tr('no_surah_match'),
       );
     }
     return ListView.builder(
@@ -182,6 +190,13 @@ class _SurahTab extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 16),
       itemBuilder: (context, i) {
         final s = surahs[i];
+        final displayName = bn ? bnSurahName(s.number) : s.englishName;
+        final meaning = bn
+            ? bnSurahMeaning(s.number)
+            : s.englishNameTranslation;
+        final revelation = bn
+            ? tr(s.revelationType == 'Meccan' ? 'meccan' : 'medinan')
+            : s.revelationType;
         return ListTile(
           leading: Container(
             width: 44,
@@ -189,16 +204,16 @@ class _SurahTab extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: primaryGreen.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Text('${s.number}',
                 style: const TextStyle(
                     fontWeight: FontWeight.w700, color: primaryGreen)),
           ),
-          title: Text(s.englishName,
-              style: const TextStyle(fontWeight: FontWeight.w600)),
+          title: Text(displayName,
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(
-              '${s.englishNameTranslation} · ${s.ayahs.length} ayahs · ${s.revelationType}'),
+              '$meaning · ${s.ayahs.length} ${tr('ayahs')} · $revelation'),
           trailing: Text(s.name,
               style: const TextStyle(fontSize: 20, color: primaryGreen)),
           onTap: () => Navigator.of(context).push(
@@ -237,8 +252,8 @@ class _JuzTab extends StatelessWidget {
                 style: const TextStyle(
                     fontWeight: FontWeight.w700, color: primaryGreen)),
           ),
-          title: Text('Juz ${j.number}',
-              style: const TextStyle(fontWeight: FontWeight.w600)),
+          title: Text('${tr('juz')} ${j.number}',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(juzRangeText(j, surahs)),
           trailing: const Icon(Icons.chevron_right),
           onTap: () {
@@ -327,27 +342,36 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
-        return Scaffold(
+        final bn = state.isBangla;
+        final displayName =
+            bn ? bnSurahName(_surah.number) : _surah.englishName;
+        final meaning = bn
+            ? bnSurahMeaning(_surah.number)
+            : _surah.englishNameTranslation;
+        final revelation = bn
+            ? tr(_surah.revelationType == 'Meccan' ? 'meccan' : 'medinan')
+            : _surah.revelationType;
+        return AppScaffold(
           appBar: AppBar(
-            title: Text('${_surah.number}. ${_surah.englishName}'),
+            title: Text('${_surah.number}. $displayName'),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.text_decrease),
-                tooltip: 'Smaller text',
+              TonalIconButton(
+                icon: Icons.text_decrease,
+                tooltip: tr('smaller_text'),
                 onPressed: state.arabicSize > 18
                     ? () => state.setArabicSize(state.arabicSize - 2)
                     : null,
               ),
-              IconButton(
-                icon: const Icon(Icons.text_increase),
-                tooltip: 'Larger text',
+              TonalIconButton(
+                icon: Icons.text_increase,
+                tooltip: tr('larger_text'),
                 onPressed: state.arabicSize < 36
                     ? () => state.setArabicSize(state.arabicSize + 2)
                     : null,
               ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.translate),
-                tooltip: 'Translation language',
+                tooltip: tr('translation_lang'),
                 onSelected: (value) {
                   if (value == 'off') {
                     state.setShowTranslation(false);
@@ -366,7 +390,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                               ? primaryGreen
                               : Colors.transparent),
                       const SizedBox(width: 8),
-                      const Text('English (Sahih International)'),
+                      Text(tr('english_sahih')),
                     ]),
                   ),
                   PopupMenuItem(
@@ -379,7 +403,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                               ? primaryGreen
                               : Colors.transparent),
                       const SizedBox(width: 8),
-                      const Text('Bangla (Muhiuddin Khan)'),
+                      Text(tr('bangla_muhiuddin')),
                     ]),
                   ),
                   PopupMenuItem(
@@ -391,7 +415,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                               ? primaryGreen
                               : Colors.transparent),
                       const SizedBox(width: 8),
-                      const Text('Off'),
+                      Text(tr('off')),
                     ]),
                   ),
                 ],
@@ -411,7 +435,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                             fontSize: 28, color: primaryGreen)),
                     const SizedBox(height: 4),
                     Text(
-                        '${_surah.englishNameTranslation} · ${_surah.ayahs.length} ayahs · ${_surah.revelationType}',
+                        '$meaning · ${_surah.ayahs.length} ${tr('ayahs')} · $revelation',
                         style: TextStyle(
                             color: Theme.of(context)
                                 .colorScheme
@@ -434,20 +458,23 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
+                        child: TonalButton(
+                          label: tr('previous_surah'),
+                          icon: Icons.chevron_left,
                           onPressed: _surah.number > 1
                               ? () => _goToSurah(_surah.number - 1)
                               : null,
-                          child: const Text('Previous Surah'),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: FilledButton(
+                        child: PrimaryButton(
+                          label: tr('next_surah'),
+                          icon: Icons.chevron_right,
+                          expanded: false,
                           onPressed: _surah.number < 114
                               ? () => _goToSurah(_surah.number + 1)
                               : null,
-                          child: const Text('Next Surah'),
                         ),
                       ),
                     ],
@@ -500,14 +527,14 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                                 style: TextStyle(
                                     fontSize: state.arabicSize, height: 2.0)),
                           ),
-                          IconButton(
-                            icon: Icon(
-                                bookmarked
-                                    ? Icons.bookmark
-                                    : Icons.bookmark_border,
-                                color: primaryGreen),
-                            tooltip:
-                                bookmarked ? 'Remove bookmark' : 'Bookmark',
+                          TonalIconButton(
+                            icon: bookmarked
+                                ? Icons.bookmark
+                                : Icons.bookmark_border,
+                            filled: bookmarked,
+                            tooltip: bookmarked
+                                ? tr('remove_bookmark')
+                                : tr('bookmark_ayah'),
                             onPressed: () {
                               state.toggleBookmark(
                                   _surah.number, ayah.numberInSurah);
@@ -540,56 +567,60 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
 
   Future<void> _showAyahActions(BuildContext context, Ayah ayah) async {
     final state = AppState.instance;
-    final ref = '${_surah.englishName} ${_surah.number}:${ayah.numberInSurah}';
+    final bn = state.isBangla;
+    final displayName =
+        bn ? bnSurahName(_surah.number) : _surah.englishName;
+    final ref = '$displayName ${_surah.number}:${ayah.numberInSurah}';
     final translation = _translationText(ayah) ?? ayah.translation;
     await showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (sheetContext) {
+        final bookmarked =
+            state.isBookmarked(_surah.number, ayah.numberInSurah);
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(ref,
                     style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700)),
+                        fontSize: 17, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
                 Text(translation,
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                const SizedBox(height: 12),
-                ListTile(
-                  leading: const Icon(Icons.copy),
-                  title: const Text('Copy ayah'),
-                  onTap: () {
+                const SizedBox(height: 16),
+                CopyShareRow(
+                  onCopy: () {
                     Navigator.of(sheetContext).pop();
                     copyText(context, '${ayah.text}\n$translation\n($ref)', ref);
                   },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.share),
-                  title: const Text('Share ayah'),
-                  onTap: () {
+                  onShare: () {
                     Navigator.of(sheetContext).pop();
                     shareText(context, '${ayah.text}\n$translation\n($ref)');
                   },
                 ),
-                ListTile(
-                  leading: Icon(state.isBookmarked(_surah.number, ayah.numberInSurah)
-                      ? Icons.bookmark
-                      : Icons.bookmark_border),
-                  title: Text(state.isBookmarked(_surah.number, ayah.numberInSurah)
-                      ? 'Remove bookmark'
-                      : 'Bookmark ayah'),
-                  onTap: () {
-                    state.toggleBookmark(_surah.number, ayah.numberInSurah);
-                    Navigator.of(sheetContext).pop();
-                  },
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: TonalButton(
+                    label: bookmarked
+                        ? tr('remove_bookmark')
+                        : tr('bookmark_ayah'),
+                    icon: bookmarked
+                        ? Icons.bookmark
+                        : Icons.bookmark_border,
+                    onPressed: () {
+                      state.toggleBookmark(
+                          _surah.number, ayah.numberInSurah);
+                      Navigator.of(sheetContext).pop();
+                    },
+                  ),
                 ),
               ],
             ),
