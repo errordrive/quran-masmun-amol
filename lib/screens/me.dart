@@ -4,11 +4,13 @@
 import 'package:flutter/material.dart';
 import '../data/duas.dart';
 import '../data/hadith.dart';
+import '../data/surah_names_bn.dart';
 import '../data/tasbih.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/prayer.dart';
 import '../services/quran_service.dart';
+import '../services/strings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'content.dart';
@@ -23,6 +25,7 @@ class MeScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
+        final bn = state.isBangla;
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
@@ -35,7 +38,7 @@ class MeScreen extends StatelessWidget {
             // Profile card (guest)
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
                     Container(
@@ -49,22 +52,22 @@ class MeScreen extends StatelessWidget {
                           size: 32, color: primaryGreen),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Guest',
-                              style: TextStyle(
+                          Text(tr('guest'),
+                              style: const TextStyle(
                                   fontSize: 18,
-                                  fontWeight: FontWeight.w700)),
-                          Text('Not signed in',
-                              style: TextStyle(color: Colors.grey)),
+                                  fontWeight: FontWeight.w800)),
+                          Text(tr('not_signed_in'),
+                              style: const TextStyle(color: Colors.grey)),
                         ],
                       ),
                     ),
                     FilledButton(
                       onPressed: () => _showSignInDialog(context),
-                      child: const Text('Sign in'),
+                      child: Text(tr('sign_in')),
                     ),
                   ],
                 ),
@@ -74,7 +77,7 @@ class MeScreen extends StatelessWidget {
             // Credit balance card
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
                     Container(
@@ -82,7 +85,7 @@ class MeScreen extends StatelessWidget {
                       height: 48,
                       decoration: BoxDecoration(
                         color: primaryGreen.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: const Icon(Icons.stars,
                           color: primaryGreen, size: 26),
@@ -92,12 +95,12 @@ class MeScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Credit balance',
-                              style: TextStyle(color: Colors.grey)),
-                          Text('${state.credits} credits',
+                          Text(tr('credit_balance'),
+                              style: const TextStyle(color: Colors.grey)),
+                          Text('${state.credits} ${tr('credits')}',
                               style: const TextStyle(
                                   fontSize: 20,
-                                  fontWeight: FontWeight.w700)),
+                                  fontWeight: FontWeight.w800)),
                         ],
                       ),
                     ),
@@ -106,7 +109,7 @@ class MeScreen extends StatelessWidget {
                         MaterialPageRoute(
                             builder: (_) => const CreditStoreScreen()),
                       ),
-                      child: const Text('Buy Credits'),
+                      child: Text(tr('buy_credits')),
                     ),
                   ],
                 ),
@@ -115,25 +118,27 @@ class MeScreen extends StatelessWidget {
             const SizedBox(height: 16),
             _MeTile(
               icon: Icons.favorite,
-              title: 'Favorites',
-              subtitle: '${state.favoriteDuas.length} duas · '
-                  '${state.favoriteHadiths.length} hadiths',
+              title: tr('favorites'),
+              subtitle: '${state.favoriteDuas.length} ${tr('duas_count')} · '
+                  '${state.favoriteHadiths.length} ${tr('hadiths_count2')}',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const FavoritesScreen()),
               ),
             ),
             _MeTile(
               icon: Icons.bookmark,
-              title: 'Bookmarks',
-              subtitle: '${state.bookmarks.length} ayahs bookmarked',
+              title: tr('bookmarks'),
+              subtitle:
+                  '${state.bookmarks.length} ${tr('ayahs_bookmarked')}',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const BookmarksScreen()),
               ),
             ),
             _MeTile(
               icon: Icons.receipt_long,
-              title: 'Purchase History',
-              subtitle: '${state.purchases.length} purchases',
+              title: tr('purchase_history'),
+              subtitle:
+                  '${state.purchases.length} ${tr('purchases_count')}',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                     builder: (_) => const PurchaseHistoryScreen()),
@@ -141,27 +146,27 @@ class MeScreen extends StatelessWidget {
             ),
             _MeTile(
               icon: Icons.settings,
-              title: 'Settings',
-              subtitle: 'Theme, text size, prayer method',
+              title: tr('settings'),
+              subtitle: tr('settings_sub'),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const SettingsScreen()),
               ),
             ),
             _MeTile(
               icon: Icons.info_outline,
-              title: 'About',
-              subtitle: 'Quran & Masnun Amol v1.0.0',
+              title: tr('about'),
+              subtitle: '${tr('about_sub')} v1.1.0',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const AboutScreen()),
               ),
             ),
             _MeTile(
               icon: Icons.logout,
-              title: 'Sign out',
-              subtitle: 'You are signed in as Guest',
+              title: tr('sign_out'),
+              subtitle: tr('signed_in_as_guest'),
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('You are already using Guest mode.')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(tr('guest_mode_msg'))));
               },
             ),
           ],
@@ -174,15 +179,12 @@ class MeScreen extends StatelessWidget {
     await showDialog<void>(
       context: context,
       builder: (d) => AlertDialog(
-        title: const Text('Sign in with Google'),
-        content: const Text(
-            'Google sign-in needs Firebase Authentication setup first. '
-            'This version of the app runs fully offline as a guest, and '
-            'all your favorites, bookmarks and credits are stored on this device.'),
+        title: Text(tr('sign_in_title')),
+        content: Text(tr('sign_in_body')),
         actions: [
           FilledButton(
             onPressed: () => Navigator.of(d).pop(),
-            child: const Text('OK'),
+            child: Text(tr('ok')),
           ),
         ],
       ),
@@ -227,20 +229,35 @@ class SettingsScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Settings')),
+        return AppScaffold(
+          appBar: AppBar(title: Text(tr('settings'))),
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              const Text('Appearance',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              SectionTitle(tr('language')),
               const SizedBox(height: 8),
-              const Text('Theme'),
+              Text(tr('app_language')),
+              const SizedBox(height: 4),
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(value: 'bn', label: Text(tr('bangla'))),
+                  ButtonSegment(value: 'en', label: Text(tr('english'))),
+                ],
+                selected: {state.uiLang},
+                onSelectionChanged: (s) => state.setUiLang(s.first),
+              ),
+              const Divider(height: 32),
+              SectionTitle(tr('appearance')),
+              const SizedBox(height: 8),
+              Text(tr('theme')),
               SegmentedButton<ThemeMode>(
-                segments: const [
-                  ButtonSegment(value: ThemeMode.system, label: Text('System')),
-                  ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                  ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                segments: [
+                  ButtonSegment(
+                      value: ThemeMode.system, label: Text(tr('system'))),
+                  ButtonSegment(
+                      value: ThemeMode.light, label: Text(tr('light'))),
+                  ButtonSegment(
+                      value: ThemeMode.dark, label: Text(tr('dark'))),
                 ],
                 selected: {state.themeMode},
                 onSelectionChanged: (s) => state.setThemeMode(s.first),
@@ -248,7 +265,7 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Text('Arabic text size'),
+                  Text(tr('arabic_text_size')),
                   const Spacer(),
                   Text('${state.arabicSize.toInt()}'),
                 ],
@@ -262,18 +279,18 @@ class SettingsScreen extends StatelessWidget {
                 onChanged: (v) => state.setArabicSize(v),
               ),
               SwitchListTile(
-                title: const Text('Show translation in reader'),
+                title: Text(tr('show_translation')),
                 value: state.showTranslation,
                 onChanged: (v) => state.setShowTranslation(v),
               ),
               if (state.showTranslation) ...[
                 const SizedBox(height: 8),
-                const Text('Translation language'),
+                Text(tr('translation_lang')),
                 const SizedBox(height: 4),
                 SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'en', label: Text('English')),
-                    ButtonSegment(value: 'bn', label: Text('Bangla')),
+                  segments: [
+                    ButtonSegment(value: 'bn', label: Text(tr('bangla'))),
+                    ButtonSegment(value: 'en', label: Text(tr('english'))),
                   ],
                   selected: {state.translationLang},
                   onSelectionChanged: (s) =>
@@ -281,16 +298,15 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ],
               SwitchListTile(
-                title: const Text('24-hour time format'),
-                subtitle: const Text('Off = 12-hour (AM/PM)'),
+                title: Text(tr('time_format_24h')),
+                subtitle: Text(tr('time_format_sub')),
                 value: state.use24h,
                 onChanged: (v) => state.setUse24h(v),
               ),
               const Divider(),
-              const Text('Prayer',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              SectionTitle(tr('prayer')),
               const SizedBox(height: 8),
-              const Text('Calculation method'),
+              Text(tr('calc_method')),
               const SizedBox(height: 4),
               for (final m in PrayerMethod.values)
                 RadioListTile<PrayerMethod>(
@@ -302,14 +318,14 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
               SwitchListTile(
-                title: const Text('Asr method: Hanafi'),
-                subtitle: const Text('Off = Standard. On = Hanafi (later Asr).'),
+                title: Text(tr('asr_hanafi')),
+                subtitle: Text(tr('asr_hanafi_sub')),
                 value: state.asrHanafi,
                 onChanged: (v) => state.setAsrHanafi(v),
               ),
               const Divider(),
               SwitchListTile(
-                title: const Text('Vibration on tasbih tap'),
+                title: Text(tr('vibration_on_tap')),
                 value: state.vibrationOn,
                 onChanged: (v) => state.setVibration(v),
               ),
@@ -332,14 +348,14 @@ class CreditStoreScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Buy Credits')),
+        return AppScaffold(
+          appBar: AppBar(title: Text(tr('buy_credits'))),
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Row(
                     children: [
                       const Icon(Icons.stars, color: primaryGreen, size: 28),
@@ -347,11 +363,11 @@ class CreditStoreScreen extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Current balance',
-                              style: TextStyle(color: Colors.grey)),
-                          Text('${state.credits} credits',
+                          Text(tr('current_balance'),
+                              style: const TextStyle(color: Colors.grey)),
+                          Text('${state.credits} ${tr('credits')}',
                               style: const TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.w700)),
+                                  fontSize: 20, fontWeight: FontWeight.w800)),
                         ],
                       ),
                     ],
@@ -359,12 +375,11 @@ class CreditStoreScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'Demo mode: prices below are placeholders. Real Google Play '
-                  'pricing needs Play Console products and the verification Worker.',
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                  tr('demo_mode_note'),
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
                 ),
               ),
               for (final pkg in creditPackages)
@@ -376,7 +391,7 @@ class CreditStoreScreen extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: primaryGreen.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: const Icon(Icons.stars, color: primaryGreen),
                     ),
@@ -384,7 +399,7 @@ class CreditStoreScreen extends StatelessWidget {
                       children: [
                         Text(pkg.name,
                             style:
-                                const TextStyle(fontWeight: FontWeight.w600)),
+                                const TextStyle(fontWeight: FontWeight.w700)),
                         if (pkg.badge != null) ...[
                           const SizedBox(width: 8),
                           Container(
@@ -401,21 +416,22 @@ class CreditStoreScreen extends StatelessWidget {
                         ],
                       ],
                     ),
-                    subtitle: Text('${pkg.credits} credits · ${pkg.priceText}'),
+                    subtitle:
+                        Text('${pkg.credits} ${tr('credits')} · ${pkg.priceText}'),
                     trailing: FilledButton(
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
                             builder: (_) => PaymentScreen(package: pkg)),
                       ),
-                      child: const Text('Buy'),
+                      child: Text(tr('buy')),
                     ),
                   ),
                 ),
               if (creditPackages.isEmpty)
-                const EmptyState(
+                EmptyState(
                   icon: Icons.stars,
-                  title: 'No packages available right now',
-                  subtitle: 'Please check back later.',
+                  title: tr('no_packages_title'),
+                  subtitle: tr('no_packages_sub'),
                 ),
             ],
           ),
@@ -451,8 +467,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final state = AppState.instance;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Payment')),
+    return AppScaffold(
+      appBar: AppBar(title: Text(tr('payment'))),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: _success
@@ -470,12 +486,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         color: Colors.white, size: 48),
                   ),
                   const SizedBox(height: 24),
-                  Text('You received ${widget.package.credits} credits!',
+                  Text(
+                      '${tr('received_credits')} ${widget.package.credits} ${tr('credits')}!',
                       style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.w700),
+                          fontSize: 20, fontWeight: FontWeight.w800),
                       textAlign: TextAlign.center),
                   const SizedBox(height: 8),
-                  Text('New balance: ${state.credits} credits',
+                  Text('${tr('new_balance')}: ${state.credits} ${tr('credits')}',
                       style: const TextStyle(fontSize: 16)),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -483,7 +500,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     child: FilledButton(
                       onPressed: () =>
                           Navigator.of(context).popUntil((r) => r.isFirst),
-                      child: const Text('Done'),
+                      child: Text(tr('done')),
                     ),
                   ),
                 ],
@@ -493,22 +510,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 children: [
                   Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Order summary',
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700)),
+                          SectionTitle(tr('order_summary')),
                           const SizedBox(height: 12),
-                          _summaryRow('Package', widget.package.name),
+                          _summaryRow(tr('package'), widget.package.name),
                           _summaryRow(
-                              'Credits', '${widget.package.credits}'),
-                          _summaryRow('Price', widget.package.priceText),
+                              tr('credits'), '${widget.package.credits}'),
+                          _summaryRow(tr('price'), widget.package.priceText),
                           const Divider(),
-                          _summaryRow('New balance after payment',
-                              '${state.credits + widget.package.credits} credits'),
+                          _summaryRow(tr('new_balance_after_payment'),
+                              '${state.credits + widget.package.credits} ${tr('credits')}'),
                         ],
                       ),
                     ),
@@ -520,11 +534,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       color: primaryGreen.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'Demo mode: this is a simulated payment. Real Play Billing '
-                      'needs Google Play Console products plus the verification '
-                      'Worker — no real money is charged here.',
-                      style: TextStyle(fontSize: 13),
+                    child: Text(
+                      tr('demo_payment_note'),
+                      style: const TextStyle(fontSize: 13),
                     ),
                   ),
                   const Spacer(),
@@ -533,20 +545,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     child: FilledButton(
                       onPressed: _processing ? null : _pay,
                       child: _processing
-                          ? const Row(
+                          ? Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                SizedBox(
+                                const SizedBox(
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.white),
                                 ),
-                                SizedBox(width: 12),
-                                Text('Processing…'),
+                                const SizedBox(width: 12),
+                                Text(tr('processing')),
                               ],
                             )
-                          : const Text('Pay with Google Play'),
+                          : Text(tr('pay_with_google_play')),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -555,7 +567,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       onPressed: _processing
                           ? null
                           : () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
+                      child: Text(tr('cancel')),
                     ),
                   ),
                 ],
@@ -589,6 +601,7 @@ class FavoritesScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
+        final bn = state.isBangla;
         final favDuas =
             duas.where((d) => state.favoriteDuas.contains(d.id)).toList();
         final favHadiths = hadiths
@@ -596,26 +609,25 @@ class FavoritesScreen extends StatelessWidget {
                 state.favoriteHadiths.contains('${h.collection}|${h.number}'))
             .toList();
         if (favDuas.isEmpty && favHadiths.isEmpty) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Favorites')),
-            body: const EmptyState(
+          return AppScaffold(
+            appBar: AppBar(title: Text(tr('favorites'))),
+            body: EmptyState(
               icon: Icons.favorite_border,
-              title: 'No favorites yet',
-              subtitle:
-                  'Tap the heart on any dua or hadith to save it here.',
+              title: tr('no_favorites_title'),
+              subtitle: tr('no_favorites_sub'),
             ),
           );
         }
-        return Scaffold(
-          appBar: AppBar(title: const Text('Favorites')),
+        return AppScaffold(
+          appBar: AppBar(title: Text(tr('favorites'))),
           body: ListView(
             padding: const EdgeInsets.only(bottom: 16),
             children: [
               if (favDuas.isNotEmpty) ...[
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-                  child: Text('Duas',
-                      style: TextStyle(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                  child: Text(tr('dua_group'),
+                      style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           color: primaryGreen)),
                 ),
@@ -623,7 +635,7 @@ class FavoritesScreen extends StatelessWidget {
                   ListTile(
                     leading:
                         const Icon(Icons.favorite, color: primaryGreen),
-                    title: Text(d.title),
+                    title: Text(bn ? d.banglaTitle : d.title),
                     subtitle: Text(d.reference,
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     onTap: () => Navigator.of(context).push(
@@ -633,10 +645,10 @@ class FavoritesScreen extends StatelessWidget {
                   ),
               ],
               if (favHadiths.isNotEmpty) ...[
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-                  child: Text('Hadith',
-                      style: TextStyle(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                  child: Text(tr('hadith'),
+                      style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           color: primaryGreen)),
                 ),
@@ -645,7 +657,7 @@ class FavoritesScreen extends StatelessWidget {
                     leading: const Icon(Icons.auto_stories,
                         color: primaryGreen),
                     title: Text('${h.collection} ${h.number}'),
-                    subtitle: Text(h.english,
+                    subtitle: Text(bn ? h.banglaMeaning : h.english,
                         maxLines: 2, overflow: TextOverflow.ellipsis),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
@@ -688,25 +700,26 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
+        final bn = state.isBangla;
         if (_loading) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Bookmarks')),
+          return AppScaffold(
+            appBar: AppBar(title: Text(tr('bookmarks'))),
             body: const LoadingState(),
           );
         }
         final items = state.bookmarks.toList();
         if (items.isEmpty) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Bookmarks')),
-            body: const EmptyState(
+          return AppScaffold(
+            appBar: AppBar(title: Text(tr('bookmarks'))),
+            body: EmptyState(
               icon: Icons.bookmark_border,
-              title: 'No bookmarks yet',
-              subtitle: 'Tap an ayah in the reader and choose Bookmark.',
+              title: tr('no_bookmarks_title'),
+              subtitle: tr('no_bookmarks_sub'),
             ),
           );
         }
-        return Scaffold(
-          appBar: AppBar(title: const Text('Bookmarks')),
+        return AppScaffold(
+          appBar: AppBar(title: Text(tr('bookmarks'))),
           body: ListView.builder(
             itemCount: items.length,
             padding: const EdgeInsets.only(bottom: 16),
@@ -717,15 +730,15 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
               final surah =
                   QuranService.instance.surahByNumber(_surahs, surahNo);
               final title = surah == null
-                  ? 'Surah $surahNo:$ayahNo'
-                  : '${surah.englishName} $surahNo:$ayahNo';
+                  ? '${tr('surah')} $surahNo:$ayahNo'
+                  : '${bn ? bnSurahName(surah.number) : surah.englishName} $surahNo:$ayahNo';
               return ListTile(
                 leading:
                     const Icon(Icons.bookmark, color: primaryGreen),
                 title: Text(title),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Remove bookmark',
+                  tooltip: tr('remove_bookmark'),
                   onPressed: () => state.toggleBookmark(surahNo, ayahNo),
                 ),
                 onTap: surah == null
@@ -756,17 +769,17 @@ class PurchaseHistoryScreen extends StatelessWidget {
       listenable: state,
       builder: (context, _) {
         if (state.purchases.isEmpty) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('Purchase History')),
-            body: const EmptyState(
+          return AppScaffold(
+            appBar: AppBar(title: Text(tr('purchase_history'))),
+            body: EmptyState(
               icon: Icons.receipt_long,
-              title: 'No purchases yet',
-              subtitle: 'Your credit purchases will appear here.',
+              title: tr('no_purchases_title'),
+              subtitle: tr('no_purchases_sub'),
             ),
           );
         }
-        return Scaffold(
-          appBar: AppBar(title: const Text('Purchase History')),
+        return AppScaffold(
+          appBar: AppBar(title: Text(tr('purchase_history'))),
           body: ListView.builder(
             itemCount: state.purchases.length,
             padding: const EdgeInsets.only(bottom: 16),
@@ -777,8 +790,8 @@ class PurchaseHistoryScreen extends StatelessWidget {
                 title: Text(p.packageName),
                 subtitle: Text(
                     '${p.date.day}/${p.date.month}/${p.date.year} · ${p.status}'),
-                trailing: Text('+${p.credits} credits',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                trailing: Text('+${p.credits} ${tr('credits')}',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
               );
             },
           ),
@@ -793,42 +806,32 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('About')),
+    return AppScaffold(
+      appBar: AppBar(title: Text(tr('about'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: const [
-          Text('Quran & Masnun Amol',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-          SizedBox(height: 4),
-          Text('Version 1.0.0 (build 1)'),
-          SizedBox(height: 16),
-          Text(
-              'A clean, minimal Islamic companion app: prayer times, the full Quran, '
-              'Hadith, daily duas, masnun amol and tasbih — all working offline.'),
-          SizedBox(height: 16),
-          Text('Quran text',
-              style: TextStyle(fontWeight: FontWeight.w700)),
-          SizedBox(height: 4),
-          Text(
-              'Arabic text: Uthmani script. English translation: Sahih International. '
-              'Bundled in the app, no internet needed.'),
-          SizedBox(height: 16),
-          Text('Prayer times',
-              style: TextStyle(fontWeight: FontWeight.w700)),
-          SizedBox(height: 4),
-          Text(
-              'Calculated on your device with the standard solar algorithm. '
-              'Default method: Karachi (University of Islamic Sciences). '
-              'Hijri dates use an arithmetic approximation and may differ by a day.'),
-          SizedBox(height: 16),
-          Text('Not yet connected',
-              style: TextStyle(fontWeight: FontWeight.w700)),
-          SizedBox(height: 4),
-          Text(
-              'Google sign-in (Firebase), real Play Billing purchases, and the '
-              'admin panel need setup in Firebase and Google Play Console. '
-              'Until then the app runs fully as a guest, and payments run in demo mode.'),
+        children: [
+          Text(tr('app_name'),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          const Text('Version 1.1.0 (build 2)'),
+          const SizedBox(height: 16),
+          Text(tr('about_intro')),
+          const SizedBox(height: 16),
+          Text(tr('about_quran_text'),
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text(tr('about_quran_body')),
+          const SizedBox(height: 16),
+          Text(tr('about_prayer_times'),
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text(tr('about_prayer_body')),
+          const SizedBox(height: 16),
+          Text(tr('about_not_connected'),
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text(tr('about_not_connected_body')),
         ],
       ),
     );
