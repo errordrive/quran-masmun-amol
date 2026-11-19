@@ -31,11 +31,11 @@ jobs:
         continue-on-error: true
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --split-per-abi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: quran-masmun-amol-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: quran-masmun-amol-release-arm64
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
           retention-days: 30
