@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/app_state.dart';
 import '../services/prayer.dart';
+import '../services/strings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'content.dart';
@@ -73,7 +74,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
                           onPressed: () => setState(() {
                             _day = _day.subtract(const Duration(days: 1));
                           }),
-                          tooltip: 'Previous day',
+                          tooltip: tr('prev_day'),
                         ),
                         Expanded(
                           child: Column(
@@ -98,25 +99,25 @@ class _PrayerScreenState extends State<PrayerScreen> {
                           onPressed: () => setState(() {
                             _day = _day.add(const Duration(days: 1));
                           }),
-                          tooltip: 'Next day',
+                          tooltip: tr('next_day'),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     if (_isToday) ...[
-                      Text('Next prayer: $next',
+                      Text('${tr('next_prayer')}: ${prayerName(next)}',
                           style: const TextStyle(color: Colors.grey)),
                       Text(formatCountdown(nextTime.difference(now)),
                           style: const TextStyle(
                               fontSize: 32,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w800,
                               color: primaryGreen)),
-                      Text('at ${formatTime(nextTime, use24h: state.use24h)}'),
+                      Text(formatTime(nextTime, use24h: state.use24h)),
                       const SizedBox(height: 8),
                     ] else
                       TextButton(
                         onPressed: () => setState(() => _day = DateTime.now()),
-                        child: const Text('Back to today'),
+                        child: Text(tr('back_to_today')),
                       ),
                   ],
                 ),
@@ -140,17 +141,17 @@ class _PrayerScreenState extends State<PrayerScreen> {
             // Sehri & Iftar card
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.nightlight_round, color: primaryGreen),
+                        const Icon(Icons.nightlight_round, color: primaryGreen),
                         SizedBox(width: 8),
-                        Text('Sehri & Iftar',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w700)),
+                        Text(tr('sehri_iftar'),
+                            style: const TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.w800)),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -160,13 +161,13 @@ class _PrayerScreenState extends State<PrayerScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Sehri ends',
-                                  style: TextStyle(color: Colors.grey)),
+                              Text(tr('sehri_ends'),
+                                  style: const TextStyle(color: Colors.grey)),
                               Text(formatTime(times.fajr,
                                   use24h: state.use24h),
                                   style: const TextStyle(
                                       fontSize: 20,
-                                      fontWeight: FontWeight.w700)),
+                                      fontWeight: FontWeight.w800)),
                             ],
                           ),
                         ),
@@ -179,13 +180,13 @@ class _PrayerScreenState extends State<PrayerScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              const Text('Iftar',
-                                  style: TextStyle(color: Colors.grey)),
+                              Text(tr('iftar'),
+                                  style: const TextStyle(color: Colors.grey)),
                               Text(formatTime(times.maghrib,
                                   use24h: state.use24h),
                                   style: const TextStyle(
                                       fontSize: 20,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w800,
                                       color: primaryGreen)),
                             ],
                           ),
@@ -198,9 +199,9 @@ class _PrayerScreenState extends State<PrayerScreen> {
                     ] else
                       const SizedBox(height: 4),
                     const SizedBox(height: 4),
-                    const Text(
-                        'Sehri ends at Fajr and Iftar is at Maghrib for the selected city.',
-                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text(
+                        tr('sehri_iftar_note'),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -209,7 +210,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
             // Namaz tracker
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -218,22 +219,22 @@ class _PrayerScreenState extends State<PrayerScreen> {
                         const Icon(Icons.check_circle_outline,
                             color: primaryGreen),
                         const SizedBox(width: 8),
-                        const Text('Namaz tracker',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w700)),
+                        Text(tr('namaz_tracker'),
+                            style: const TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.w800)),
                         const Spacer(),
                         Text(
-                            '${state.prayerMarkCount(_day)}/5 prayed',
+                            '${state.prayerMarkCount(_day)}/5 ${tr('prayed')}',
                             style: const TextStyle(
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                                 color: primaryGreen)),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
                         _isToday
-                            ? 'Tap a prayer to mark it as prayed today.'
-                            : 'Viewing ${gregorianDateString(_day)} — tap to edit marks for that day.',
+                            ? tr('tracker_today')
+                            : tr('tracker_other_day'),
                         style: const TextStyle(
                             fontSize: 13, color: Colors.grey)),
                     const SizedBox(height: 12),
@@ -250,8 +251,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Text('Last 7 days',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text(tr('last_7_days'),
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 8),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -292,15 +293,18 @@ class _PrayerScreenState extends State<PrayerScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: () => _showMethodSheet(context),
-              icon: const Icon(Icons.settings, size: 18),
-              label: Text(
-                  'Method: ${state.prayerMethod.label} · Asr ${state.asrHanafi ? 'Hanafi' : 'Standard'}'),
+            SizedBox(
+              width: double.infinity,
+              child: TonalButton(
+                label:
+                    '${tr('method_label')}: ${state.prayerMethod.label} · ${tr('asr_hanafi').split(':').first} ${state.asrHanafi ? 'Hanafi' : 'Standard'}',
+                icon: Icons.settings,
+                onPressed: () => _showMethodSheet(context),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Times are calculated on your device for ${state.cityName}. Hijri date is an approximation and may differ by a day.',
+              '${tr('times_note')} (${state.cityName})',
               style: TextStyle(
                   fontSize: 12,
                   color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -313,24 +317,33 @@ class _PrayerScreenState extends State<PrayerScreen> {
   }
 
   String _sehriIftarCountdown(DayPrayerTimes times, DateTime now) {
+    final bn = AppState.instance.isBangla;
     if (now.isBefore(times.fajr)) {
-      return 'Sehri ends in ${formatCountdown(times.fajr.difference(now))}';
+      final cd = formatCountdown(times.fajr.difference(now));
+      return bn ? 'সেহরি শেষ হতে আর $cd বাকি' : 'Sehri ends in $cd';
     }
     if (now.isBefore(times.maghrib)) {
-      return 'Iftar in ${formatCountdown(times.maghrib.difference(now))}';
+      final cd = formatCountdown(times.maghrib.difference(now));
+      return bn ? 'ইফতারের আর $cd বাকি' : 'Iftar in $cd';
     }
     final tomorrow =
         AppState.instance.prayerTimesFor(now.add(const Duration(days: 1)));
-    return 'Sehri ends tomorrow at ${formatTime(tomorrow.fajr, use24h: AppState.instance.use24h)}';
+    final t = formatTime(tomorrow.fajr, use24h: AppState.instance.use24h);
+    return bn
+        ? 'আগামীকাল সেহরি শেষ $t'
+        : 'Sehri ends tomorrow at $t';
   }
 
   String _weekdayShort(DateTime d) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const daysEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const daysBn = ['সোম', 'মঙ্গল', 'বুধ', 'বৃহ', 'শুক্র', 'শনি', 'রবি'];
     final now = DateTime.now();
     if (d.year == now.year && d.month == now.month && d.day == now.day) {
-      return 'Today';
+      return tr('today');
     }
-    return days[d.weekday - 1];
+    return AppState.instance.isBangla
+        ? daysBn[d.weekday - 1]
+        : daysEn[d.weekday - 1];
   }
 
   Future<void> _showMethodSheet(BuildContext context) async {
@@ -350,12 +363,12 @@ class _PrayerScreenState extends State<PrayerScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Prayer settings',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w700)),
+                    Text(tr('prayer_settings'),
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 12),
-                    const Text('Calculation method',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text(tr('method_label'),
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
                     for (final m in PrayerMethod.values)
                       RadioListTile<PrayerMethod>(
                         title: Text(m.label),
@@ -370,9 +383,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
                       ),
                     const Divider(),
                     SwitchListTile(
-                      title: const Text('Asr method: Hanafi'),
-                      subtitle:
-                          const Text('Off = Standard (Shafi\'i). On = Hanafi (later Asr).'),
+                      title: Text(tr('asr_hanafi')),
+                      subtitle: Text(tr('asr_hanafi_sub')),
                       value: state.asrHanafi,
                       onChanged: (v) {
                         state.setAsrHanafi(v);
@@ -429,7 +441,7 @@ class _PrayerCheck extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(label, style: const TextStyle(fontSize: 12)),
+            Text(prayerName(label), style: const TextStyle(fontSize: 12)),
           ],
         ),
       ),
@@ -468,11 +480,11 @@ class _PrayerRow extends StatelessWidget {
                 : (isSunrise ? Colors.grey : primaryGreen),
           ),
           const SizedBox(width: 12),
-          Text(name,
+          Text(prayerName(name),
               style: TextStyle(
                   fontSize: 16,
                   fontWeight:
-                      highlighted ? FontWeight.w700 : FontWeight.w500,
+                      highlighted ? FontWeight.w800 : FontWeight.w500,
                   color: isSunrise && !highlighted ? Colors.grey : null)),
           const Spacer(),
           Text(time,
@@ -490,8 +502,8 @@ class _PrayerRow extends StatelessWidget {
                 color: primaryGreen,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text('Now',
-                  style: TextStyle(color: Colors.white, fontSize: 12)),
+              child: Text(tr('now_badge'),
+                  style: const TextStyle(color: Colors.white, fontSize: 12)),
             ),
           ],
         ],
