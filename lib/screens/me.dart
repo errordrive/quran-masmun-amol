@@ -234,7 +234,7 @@ class SettingsScreen extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              SectionTitle(tr('language')),
+              SectionTitle(title: tr('language')),
               const SizedBox(height: 8),
               Text(tr('app_language')),
               const SizedBox(height: 4),
@@ -247,7 +247,7 @@ class SettingsScreen extends StatelessWidget {
                 onSelectionChanged: (s) => state.setUiLang(s.first),
               ),
               const Divider(height: 32),
-              SectionTitle(tr('appearance')),
+              SectionTitle(title: tr('appearance')),
               const SizedBox(height: 8),
               Text(tr('theme')),
               SegmentedButton<ThemeMode>(
@@ -304,7 +304,7 @@ class SettingsScreen extends StatelessWidget {
                 onChanged: (v) => state.setUse24h(v),
               ),
               const Divider(),
-              SectionTitle(tr('prayer')),
+              SectionTitle(title: tr('prayer')),
               const SizedBox(height: 8),
               Text(tr('calc_method')),
               const SizedBox(height: 4),
@@ -514,7 +514,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SectionTitle(tr('order_summary')),
+                          SectionTitle(title: tr('order_summary')),
                           const SizedBox(height: 12),
                           _summaryRow(tr('package'), widget.package.name),
                           _summaryRow(
