@@ -24,8 +24,9 @@ class AppState extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.system;
   double arabicSize = 24;
   bool showTranslation = true;
-  String translationLang = 'en'; // 'en' | 'bn'
-  bool use24h = false;
+  String translationLang = 'bn'; // 'bn' | 'en' — Bangla is the default
+  String uiLang = 'bn'; // 'bn' | 'en' — Bangla UI by default
+  bool use24h = false; // false = 12-hour (AM/PM), the default
   PrayerMethod prayerMethod = PrayerMethod.karachi;
   bool asrHanafi = false;
   bool vibrationOn = true;
@@ -60,7 +61,8 @@ class AppState extends ChangeNotifier {
             : ThemeMode.system;
     arabicSize = _prefs.getDouble('arabicSize') ?? 24;
     showTranslation = _prefs.getBool('showTranslation') ?? true;
-    translationLang = _prefs.getString('translationLang') ?? 'en';
+    translationLang = _prefs.getString('translationLang') ?? 'bn';
+    uiLang = _prefs.getString('uiLang') ?? 'bn';
     use24h = _prefs.getBool('use24h') ?? false;
     prayerMethod = PrayerMethod.values[_prefs.getInt('prayerMethod') ?? 0];
     asrHanafi = _prefs.getBool('asrHanafi') ?? false;
@@ -126,6 +128,7 @@ class AppState extends ChangeNotifier {
     await _prefs.setDouble('arabicSize', arabicSize);
     await _prefs.setBool('showTranslation', showTranslation);
     await _prefs.setString('translationLang', translationLang);
+    await _prefs.setString('uiLang', uiLang);
     await _prefs.setBool('use24h', use24h);
     await _prefs.setInt('prayerMethod', prayerMethod.index);
     await _prefs.setBool('asrHanafi', asrHanafi);
@@ -185,6 +188,14 @@ class AppState extends ChangeNotifier {
     _save();
     notifyListeners();
   }
+
+  void setUiLang(String lang) {
+    uiLang = lang;
+    _save();
+    notifyListeners();
+  }
+
+  bool get isBangla => uiLang == 'bn';
 
   void setUse24h(bool v) {
     use24h = v;
