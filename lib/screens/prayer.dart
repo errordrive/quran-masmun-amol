@@ -1,5 +1,9 @@
-// Prayer tab: Gregorian + Hijri header, countdown, full day rows,
-// previous/next day, method + Asr settings sheet.
+// Prayer tab (v3.0 redesign, reference layout): green header band with
+// location, Next Prayer hero card, full prayer list with icons,
+// "Monthly Calendar" button, then the existing Sehri & Iftar card,
+// Namaz tracker, Qibla button and method settings — all logic kept.
+// Gregorian + Hijri header, countdown, previous/next day, method +
+// Asr settings sheet (unchanged behaviour).
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/app_state.dart';
@@ -9,7 +13,7 @@ import '../services/strings.dart';
 import '../services/widget_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
-import 'content.dart';
+import 'month_calendar.dart';
 import 'qibla.dart';
 
 class PrayerScreen extends StatefulWidget {
@@ -59,85 +63,143 @@ class _PrayerScreenState extends State<PrayerScreen> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
-            AppTopBar(
-              onSearchTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(builder: (_) => const SearchScreen()),
+            // Green header band (reference layout): title + location.
+            Container(
+              decoration: greenHeroDecoration(),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              child: Column(
+                children: [
+                  Text(
+                    tr('namaz_time'),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () => showLocationPicker(context),
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.16),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.location_on,
+                              size: 18, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text(state.cityName,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700)),
+                          const Icon(Icons.keyboard_arrow_down,
+                              size: 18, color: Colors.white70),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
+            // Day navigation + Gregorian / Hijri dates.
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+                padding: const EdgeInsets.all(8),
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.chevron_left),
-                          onPressed: () => setState(() {
-                            _day = _day.subtract(const Duration(days: 1));
-                          }),
-                          tooltip: tr('prev_day'),
-                        ),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Text(gregorianDateString(_day),
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700),
-                                  textAlign: TextAlign.center),
-                              const SizedBox(height: 2),
-                              Text(hijriDateString(_day),
-                                  style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant),
-                                  textAlign: TextAlign.center),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.chevron_right),
-                          onPressed: () => setState(() {
-                            _day = _day.add(const Duration(days: 1));
-                          }),
-                          tooltip: tr('next_day'),
-                        ),
-                      ],
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () => setState(() {
+                        _day = _day.subtract(const Duration(days: 1));
+                      }),
+                      tooltip: tr('prev_day'),
                     ),
-                    const SizedBox(height: 8),
-                    if (_isToday) ...[
-                      Text('${tr('next_prayer')}: ${prayerName(next)}',
-                          style: const TextStyle(color: Colors.grey)),
-                      Text(formatCountdown(nextTime.difference(now)),
-                          style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w800,
-                              color: primaryGreen)),
-                      Text(formatTime(nextTime, use24h: state.use24h)),
-                      const SizedBox(height: 8),
-                    ] else
-                      TextButton(
-                        onPressed: () => setState(() => _day = DateTime.now()),
-                        child: Text(tr('back_to_today')),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(gregorianDateString(_day),
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w700),
+                              textAlign: TextAlign.center),
+                          const SizedBox(height: 2),
+                          Text(hijriDateString(_day),
+                              style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant),
+                              textAlign: TextAlign.center),
+                        ],
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () => setState(() {
+                        _day = _day.add(const Duration(days: 1));
+                      }),
+                      tooltip: tr('next_day'),
+                    ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 16),
+            // Next Prayer hero (today only; other days offer "back to today").
+            if (_isToday)
+              NextPrayerHero(
+                prayerEnglish: next,
+                prayerDate: nextTime,
+                time: nextTime,
+                countdown: nextTime.difference(now),
+                cityName: state.cityName,
+              )
+            else
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: TextButton(
+                      onPressed: () => setState(() => _day = DateTime.now()),
+                      child: Text(tr('back_to_today')),
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+            // Full prayer list with icons (reference layout).
             Card(
               child: Column(
                 children: [
                   for (final (name, time) in times.ordered)
                     _PrayerRow(
                       name: name,
+                      displayName: displayPrayerName(name, _day),
                       time: formatTime(time, use24h: state.use24h),
                       highlighted: _isToday && name == current,
                       isSunrise: name == 'Sunrise',
                     ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Monthly Calendar button (v3.0).
+            SizedBox(
+              width: double.infinity,
+              child: TonalButton(
+                label: AppState.instance.isBangla
+                    ? 'মাসিক ক্যালেন্ডার'
+                    : 'Monthly Calendar',
+                icon: Icons.calendar_month,
+                onPressed: () =>
+                    Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(
+                      builder: (_) => const MonthlyCalendarScreen()),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -247,6 +309,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
                         for (var i = 0; i < 5; i++)
                           _PrayerCheck(
                             label: times.prayers[i].$1,
+                            displayName:
+                                displayPrayerName(times.prayers[i].$1, _day),
                             marked: state.isPrayerMarked(_day, i),
                             onTap: () =>
                                 state.togglePrayerMark(_day, i),
@@ -423,10 +487,12 @@ class _PrayerScreenState extends State<PrayerScreen> {
 
 class _PrayerCheck extends StatelessWidget {
   final String label;
+  final String displayName;
   final bool marked;
   final VoidCallback onTap;
   const _PrayerCheck({
     required this.label,
+    required this.displayName,
     required this.marked,
     required this.onTap,
   });
@@ -459,7 +525,7 @@ class _PrayerCheck extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(prayerName(label), style: const TextStyle(fontSize: 12)),
+            Text(displayName, style: const TextStyle(fontSize: 12)),
           ],
         ),
       ),
@@ -469,11 +535,13 @@ class _PrayerCheck extends StatelessWidget {
 
 class _PrayerRow extends StatelessWidget {
   final String name;
+  final String displayName;
   final String time;
   final bool highlighted;
   final bool isSunrise;
   const _PrayerRow({
     required this.name,
+    required this.displayName,
     required this.time,
     required this.highlighted,
     required this.isSunrise,
@@ -489,16 +557,25 @@ class _PrayerRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Icon(
-            isSunrise
-                ? Icons.wb_sunny
-                : (highlighted ? Icons.access_time_filled : Icons.access_time),
-            color: highlighted
-                ? primaryGreen
-                : (isSunrise ? Colors.grey : primaryGreen),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: highlighted
+                  ? primaryGreen
+                  : primaryGreen.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              prayerIcon(name),
+              color: highlighted
+                  ? Colors.white
+                  : (isSunrise ? Colors.grey : primaryGreen),
+              size: 22,
+            ),
           ),
           const SizedBox(width: 12),
-          Text(prayerName(name),
+          Text(displayName,
               style: TextStyle(
                   fontSize: 16,
                   fontWeight:
