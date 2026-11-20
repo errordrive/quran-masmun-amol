@@ -1,9 +1,8 @@
-// Prayer tab (v3.0 redesign, reference layout): green header band with
-// location, Next Prayer hero card, full prayer list with icons,
-// "Monthly Calendar" button, then the existing Sehri & Iftar card,
-// Namaz tracker, Qibla button and method settings — all logic kept.
-// Gregorian + Hijri header, countdown, previous/next day, method +
-// Asr settings sheet (unchanged behaviour).
+// Prayer tab (v3.3 redesign, approved dark emerald preview): page
+// header with location, Hijri/Gregorian date chips, Next Prayer hero,
+// full prayer list (bell + prayed checkbox per prayer), Sehri & Iftar
+// gold card, Monthly Calendar + Qibla buttons, then the existing
+// Namaz tracker, method settings and note — all logic kept.
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/app_state.dart';
@@ -11,8 +10,8 @@ import '../services/azan_service.dart';
 import '../services/prayer.dart';
 import '../services/strings.dart';
 import '../services/widget_service.dart';
-import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/dark_ui.dart';
 import 'month_calendar.dart';
 import 'qibla.dart';
 
@@ -51,11 +50,16 @@ class _PrayerScreenState extends State<PrayerScreen> {
   Widget build(BuildContext context) {
     final state = AppState.instance;
     final now = DateTime.now();
+    final bn = state.isBangla;
     final times = state.prayerTimesFor(_day);
+    final today = state.prayerTimesFor(now);
+    final yesterday =
+        state.prayerTimesFor(now.subtract(const Duration(days: 1)));
     final tomorrowTimes =
         state.prayerTimesFor(now.add(const Duration(days: 1)));
-    final (current, next, nextTime) =
-        currentAndNextPrayer(times, tomorrowTimes, now);
+    final (_, next, nextTime) =
+        currentAndNextPrayer(today, tomorrowTimes, now);
+    final progress = prayerDayProgress(today, yesterday, tomorrowTimes, now);
 
     return ListenableBuilder(
       listenable: state,
@@ -63,334 +67,336 @@ class _PrayerScreenState extends State<PrayerScreen> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
-            // Green header band (reference layout): title + location.
-            Container(
-              decoration: greenHeroDecoration(),
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              child: Column(
-                children: [
-                  Text(
-                    tr('namaz_time'),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800),
+            // Page header: title + location (tap to change city).
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(tr('namaz_time'),
+                          style: const TextStyle(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
+                              color: v33Text)),
+                      const SizedBox(height: 1),
+                      InkWell(
+                        onTap: () => showLocationPicker(context),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Text(
+                          '📍 ${state.cityName}, ${bn ? 'বাংলাদেশ' : 'Bangladesh'}',
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF9DB8AD)),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () => showLocationPicker(context),
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.16),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.location_on,
-                              size: 18, color: Colors.white),
-                          const SizedBox(width: 4),
-                          Text(state.cityName,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700)),
-                          const Icon(Icons.keyboard_arrow_down,
-                              size: 18, color: Colors.white70),
-                        ],
-                      ),
+                ),
+                V33RoundButton(
+                  icon: Icons.settings_outlined,
+                  onTap: () => _showMethodSheet(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Hijri + Gregorian date chips.
+            V33DateChips(date: _day),
+            const SizedBox(height: 10),
+            // Day navigation (compact): previous / next day.
+            V33Card(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, color: v33Text),
+                    onPressed: () => setState(() {
+                      _day = _day.subtract(const Duration(days: 1));
+                    }),
+                    tooltip: tr('prev_day'),
+                  ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          bn
+                              ? v33GregorianString(_day)
+                              : gregorianDateString(_day),
+                          style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: v33Text),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(hijriDateString(_day),
+                            style: const TextStyle(
+                                fontSize: 12, color: v33Muted),
+                            textAlign: TextAlign.center),
+                      ],
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, color: v33Text),
+                    onPressed: () => setState(() {
+                      _day = _day.add(const Duration(days: 1));
+                    }),
+                    tooltip: tr('next_day'),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            // Day navigation + Gregorian / Hijri dates.
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left),
-                      onPressed: () => setState(() {
-                        _day = _day.subtract(const Duration(days: 1));
-                      }),
-                      tooltip: tr('prev_day'),
-                    ),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Text(gregorianDateString(_day),
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w700),
-                              textAlign: TextAlign.center),
-                          const SizedBox(height: 2),
-                          Text(hijriDateString(_day),
-                              style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant),
-                              textAlign: TextAlign.center),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right),
-                      onPressed: () => setState(() {
-                        _day = _day.add(const Duration(days: 1));
-                      }),
-                      tooltip: tr('next_day'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             // Next Prayer hero (today only; other days offer "back to today").
             if (_isToday)
-              NextPrayerHero(
+              V33Hero(
                 prayerEnglish: next,
                 prayerDate: nextTime,
                 time: nextTime,
                 countdown: nextTime.difference(now),
-                cityName: state.cityName,
+                progress: progress,
               )
             else
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Center(
-                    child: TextButton(
-                      onPressed: () => setState(() => _day = DateTime.now()),
-                      child: Text(tr('back_to_today')),
-                    ),
+              V33Card(
+                child: Center(
+                  child: TextButton(
+                    onPressed: () => setState(() => _day = DateTime.now()),
+                    child: Text(tr('back_to_today'),
+                        style: const TextStyle(color: v33GreenLight)),
                   ),
                 ),
               ),
-            const SizedBox(height: 16),
-            // Full prayer list with icons (reference layout).
-            Card(
+            const SizedBox(height: 10),
+            // Full prayer list with bell + prayed checkbox.
+            V33PrayerList(
+              times: times,
+              date: _day,
+              nextEnglish: _isToday ? next : null,
+            ),
+            const SizedBox(height: 10),
+            // Sehri & Iftar gold card (Sehri = Fajr, Iftar = Maghrib).
+            V33GoldCard(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final (name, time) in times.ordered)
-                    _PrayerRow(
-                      name: name,
-                      displayName: displayPrayerName(name, _day),
-                      time: formatTime(time, use24h: state.use24h),
-                      highlighted: _isToday && name == current,
-                      isSunrise: name == 'Sunrise',
-                      prayerIndex: prayerIndexFor(name),
-                      day: _day,
-                      marked: prayerIndexFor(name) >= 0 &&
-                          state.isPrayerMarked(
-                              _day, prayerIndexFor(name)),
-                    ),
+                  V33GoldLabel('🌙 ${tr('sehri_iftar')}'),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(tr('sehri_ends'),
+                                style: const TextStyle(
+                                    fontSize: 11.5, color: v33Sub)),
+                            Text(
+                              formatTime(times.fajr, use24h: state.use24h),
+                              style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  color: v33Text),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 40,
+                        color: v33Gold.withOpacity(0.25),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(tr('iftar'),
+                                style: const TextStyle(
+                                    fontSize: 11.5, color: v33Sub)),
+                            Text(
+                              formatTime(times.maghrib,
+                                  use24h: state.use24h),
+                              style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  color: v33Text),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_isToday) ...[
+                    const SizedBox(height: 9),
+                    Text(_sehriIftarCountdown(times, now),
+                        style: const TextStyle(
+                            fontSize: 12.5, color: Color(0xFFD9EDE3))),
+                  ],
+                  const SizedBox(height: 4),
+                  Text(tr('sehri_iftar_note'),
+                      style:
+                          const TextStyle(fontSize: 12, color: v33Muted)),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            // Monthly Calendar button (v3.0).
-            SizedBox(
-              width: double.infinity,
-              child: TonalButton(
-                label: AppState.instance.isBangla
-                    ? 'মাসিক ক্যালেন্ডার'
-                    : 'Monthly Calendar',
-                icon: Icons.calendar_month,
-                onPressed: () =>
-                    Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute(
-                      builder: (_) => const MonthlyCalendarScreen()),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Sehri & Iftar card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.nightlight_round, color: primaryGreen),
-                        SizedBox(width: 8),
-                        Text(tr('sehri_iftar'),
-                            style: const TextStyle(
-                                fontSize: 17, fontWeight: FontWeight.w800)),
-                      ],
+            const SizedBox(height: 10),
+            // Monthly Calendar + Qibla buttons.
+            Row(
+              children: [
+                Expanded(
+                  child: V33ActionButton(
+                    icon: Icons.calendar_month,
+                    label: bn ? 'মাসিক ক্যালেন্ডার' : 'Monthly Calendar',
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const MonthlyCalendarScreen()),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: V33ActionButton(
+                    icon: Icons.explore,
+                    label: tr('qibla'),
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const QiblaScreen()),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Namaz tracker (same state as the list checkboxes).
+            V33Card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: v33Green.withOpacity(0.16),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.check_circle_outline,
+                            color: v33GreenLight, size: 19),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(tr('namaz_tracker'),
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: v33Text)),
+                      ),
+                      Text(
+                          '${state.prayerMarkCount(_day)}/5 ${tr('prayed')}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, color: v33GreenLight)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                      _isToday ? tr('tracker_today') : tr('tracker_other_day'),
+                      style:
+                          const TextStyle(fontSize: 13, color: v33Muted)),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      for (var i = 0; i < 5; i++)
+                        _PrayerCheck(
+                          displayName:
+                              displayPrayerName(times.prayers[i].$1, _day),
+                          marked: state.isPrayerMarked(_day, i),
+                          onTap: () => state.togglePrayerMark(_day, i),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(tr('last_7_days'),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, color: v33Text)),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      for (final e in state.last7PrayerCounts())
                         Expanded(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(tr('sehri_ends'),
-                                  style: const TextStyle(color: Colors.grey)),
-                              Text(formatTime(times.fajr,
-                                  use24h: state.use24h),
+                              Text('${e.count}/5',
                                   style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800)),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          width: 1,
-                          height: 40,
-                          color: Theme.of(context).dividerColor,
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(tr('iftar'),
-                                  style: const TextStyle(color: Colors.grey)),
-                              Text(formatTime(times.maghrib,
-                                  use24h: state.use24h),
-                                  style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                      color: primaryGreen)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_isToday) ...[
-                      const SizedBox(height: 12),
-                      Center(child: Text(_sehriIftarCountdown(times, now))),
-                    ] else
-                      const SizedBox(height: 4),
-                    const SizedBox(height: 4),
-                    Text(
-                        tr('sehri_iftar_note'),
-                        style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Namaz tracker
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.check_circle_outline,
-                            color: primaryGreen),
-                        const SizedBox(width: 8),
-                        Text(tr('namaz_tracker'),
-                            style: const TextStyle(
-                                fontSize: 17, fontWeight: FontWeight.w800)),
-                        const Spacer(),
-                        Text(
-                            '${state.prayerMarkCount(_day)}/5 ${tr('prayed')}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: primaryGreen)),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                        _isToday
-                            ? tr('tracker_today')
-                            : tr('tracker_other_day'),
-                        style: const TextStyle(
-                            fontSize: 13, color: Colors.grey)),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        for (var i = 0; i < 5; i++)
-                          _PrayerCheck(
-                            label: times.prayers[i].$1,
-                            displayName:
-                                displayPrayerName(times.prayers[i].$1, _day),
-                            marked: state.isPrayerMarked(_day, i),
-                            onTap: () =>
-                                state.togglePrayerMark(_day, i),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(tr('last_7_days'),
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        for (final e in state.last7PrayerCounts())
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Text('${e.count}/5',
-                                    style: const TextStyle(fontSize: 11)),
-                                const SizedBox(height: 4),
-                                Container(
-                                  height: (e.count / 5 * 40)
-                                      .clamp(4, 40)
-                                      .toDouble(),
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 4),
-                                  decoration: BoxDecoration(
-                                    color: e.count == 5
-                                        ? primaryGreen
-                                        : e.count > 0
-                                            ? primaryGreen.withOpacity(0.55)
-                                            : Theme.of(context).dividerColor,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
+                                      fontSize: 11, color: v33Sub)),
+                              const SizedBox(height: 4),
+                              Container(
+                                height: (e.count / 5 * 40)
+                                    .clamp(4, 40)
+                                    .toDouble(),
+                                margin: const EdgeInsets.symmetric(
+                                    horizontal: 4),
+                                decoration: BoxDecoration(
+                                  color: e.count == 5
+                                      ? v33Green
+                                      : e.count > 0
+                                          ? v33Green.withOpacity(0.55)
+                                          : Colors.white.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(_weekdayShort(e.date),
-                                    style: const TextStyle(
-                                        fontSize: 11, color: Colors.grey)),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(_weekdayShort(e.date),
+                                  style: const TextStyle(
+                                      fontSize: 11, color: v33Muted)),
+                            ],
                           ),
-                      ],
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Method + Asr settings row.
+            InkWell(
+              onTap: () => _showMethodSheet(context),
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.07),
+                  borderRadius: BorderRadius.circular(14),
+                  border:
+                      Border.all(color: Colors.white.withOpacity(0.09)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.settings, size: 19, color: v33Text),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '${tr('method_label')}: ${state.prayerMethod.label} · ${tr('asr_hanafi').split(':').first} ${state.asrHanafi ? 'Hanafi' : 'Standard'}',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFE8F2ED)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: TonalButton(
-                label: tr('qibla'),
-                icon: Icons.explore,
-                onPressed: () => Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute(builder: (_) => const QiblaScreen()),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: TonalButton(
-                label:
-                    '${tr('method_label')}: ${state.prayerMethod.label} · ${tr('asr_hanafi').split(':').first} ${state.asrHanafi ? 'Hanafi' : 'Standard'}',
-                icon: Icons.settings,
-                onPressed: () => _showMethodSheet(context),
               ),
             ),
             const SizedBox(height: 8),
             Text(
               '${tr('times_note')} (${state.cityName})',
-              style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+              style: const TextStyle(fontSize: 12, color: v33Muted),
               textAlign: TextAlign.center,
             ),
           ],
@@ -412,9 +418,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
     final tomorrow =
         AppState.instance.prayerTimesFor(now.add(const Duration(days: 1)));
     final t = formatTime(tomorrow.fajr, use24h: AppState.instance.use24h);
-    return bn
-        ? 'আগামীকাল সেহরি শেষ $t'
-        : 'Sehri ends tomorrow at $t';
+    return bn ? 'আগামীকাল সেহরি শেষ $t' : 'Sehri ends tomorrow at $t';
   }
 
   String _weekdayShort(DateTime d) {
@@ -491,12 +495,10 @@ class _PrayerScreenState extends State<PrayerScreen> {
 }
 
 class _PrayerCheck extends StatelessWidget {
-  final String label;
   final String displayName;
   final bool marked;
   final VoidCallback onTap;
   const _PrayerCheck({
-    required this.label,
     required this.displayName,
     required this.marked,
     required this.onTap,
@@ -516,148 +518,24 @@ class _PrayerCheck extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: marked ? primaryGreen : Colors.transparent,
+                color: marked ? v33Green : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(
                     color: marked
-                        ? primaryGreen
-                        : Theme.of(context).dividerColor,
+                        ? v33Green
+                        : Colors.white.withOpacity(0.35),
                     width: 2),
               ),
               child: Icon(
                 marked ? Icons.check : Icons.circle_outlined,
-                color: marked ? Colors.white : Colors.grey,
+                color: marked ? Colors.white : v33Muted,
               ),
             ),
             const SizedBox(height: 4),
-            Text(displayName, style: const TextStyle(fontSize: 12)),
+            Text(displayName,
+                style: const TextStyle(fontSize: 12, color: v33Text)),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _PrayerRow extends StatelessWidget {
-  final String name;
-  final String displayName;
-  final String time;
-  final bool highlighted;
-  final bool isSunrise;
-  // Index in the 5-prayer list (Fajr 0 .. Isha 4); -1 for Sunrise.
-  final int prayerIndex;
-  final DateTime day;
-  final bool marked;
-  const _PrayerRow({
-    required this.name,
-    required this.displayName,
-    required this.time,
-    required this.highlighted,
-    required this.isSunrise,
-    required this.prayerIndex,
-    required this.day,
-    required this.marked,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final state = AppState.instance;
-    final bg = highlighted
-        ? primaryGreen.withOpacity(0.12)
-        : Colors.transparent;
-    final azanOn = prayerIndex >= 0 && state.azanPrayers[prayerIndex];
-    return Container(
-      color: bg,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: highlighted
-                  ? primaryGreen
-                  : primaryGreen.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              prayerIcon(name),
-              color: highlighted
-                  ? Colors.white
-                  : (isSunrise ? Colors.grey : primaryGreen),
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(displayName,
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight:
-                      highlighted ? FontWeight.w800 : FontWeight.w500,
-                  color: isSunrise && !highlighted ? Colors.grey : null)),
-          // Per-prayer azan speaker toggle (v3.1): the SAME AppState
-          // toggles as Settings — no second copy of the state.
-          if (prayerIndex >= 0)
-            IconButton(
-              icon: Icon(
-                azanOn ? Icons.volume_up : Icons.volume_off,
-                size: 20,
-                color: azanOn ? primaryGreen : Colors.grey,
-              ),
-              tooltip: azanOn ? tr('azan_on') : tr('azan_off'),
-              onPressed: () {
-                state.setAzanPrayer(prayerIndex, !azanOn);
-                AzanService.scheduleAll();
-              },
-            ),
-          const Spacer(),
-          Text(time,
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight:
-                      highlighted ? FontWeight.w700 : FontWeight.w400,
-                  color: highlighted ? primaryGreen : null)),
-          if (highlighted) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: primaryGreen,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(tr('now_badge'),
-                  style: const TextStyle(color: Colors.white, fontSize: 12)),
-            ),
-          ],
-          // Prayed checkbox (v3.1): the SAME namaz-tracker state and
-          // storage keys as the tracker card below, so Home, Prayer
-          // and the tracker always agree. No checkbox for Sunrise.
-          if (prayerIndex >= 0) ...[
-            const SizedBox(width: 12),
-            InkWell(
-              onTap: () => state.togglePrayerMark(day, prayerIndex),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: marked ? primaryGreen : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: marked
-                        ? primaryGreen
-                        : Theme.of(context).dividerColor,
-                    width: 2,
-                  ),
-                ),
-                child: marked
-                    ? const Icon(Icons.check, color: Colors.white, size: 18)
-                    : null,
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }
