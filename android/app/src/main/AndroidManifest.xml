@@ -2,6 +2,11 @@
 
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- v2.0: azan notifications (Android 13+ runtime permission is
+         requested in-app; exact alarms fall back to inexact if denied) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <application
         android:label="Quran &amp; Masnun Amol"
@@ -26,6 +31,18 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- v2.0: home-screen widget (next prayer). The provider reads the
+             values Flutter saves via home_widget (SharedPreferences). -->
+        <receiver
+            android:name=".PrayerWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/prayer_widget_info" />
+        </receiver>
     </application>
     <queries>
         <intent>
