@@ -13,6 +13,7 @@ import '../services/strings.dart';
 import '../screens/city_select.dart';
 import '../services/widget_service.dart';
 import '../theme.dart';
+import 'dark_ui.dart';
 
 // ---------------- Subtle geometric texture ----------------
 
@@ -64,23 +65,35 @@ class _StarPatternPainter extends CustomPainter {
 
 /// Scaffold with the subtle star pattern behind the body.
 /// Used by EVERY screen so the premium texture is app-wide.
+/// v3.3: [dark] switches the scaffold to the dark emerald palette
+/// (v33Background) for the redesigned screens; the star pattern then
+/// draws in its dark (white) variant.
 class AppScaffold extends StatelessWidget {
   final PreferredSizeWidget? appBar;
   final Widget body;
   final Widget? bottomNavigationBar;
   final Widget? floatingActionButton;
+  final bool dark;
+  /// Explicit scaffold background (used by the main shell for the
+  /// dark v3.3 palette). Defaults to the theme background.
+  final Color? scaffoldBackground;
   const AppScaffold({
     super.key,
     this.appBar,
     required this.body,
     this.bottomNavigationBar,
     this.floatingActionButton,
+    this.dark = false,
+    this.scaffoldBackground,
   });
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final isDark =
+        dark || Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
+      backgroundColor:
+          scaffoldBackground ?? (dark ? v33Background : null),
       appBar: appBar,
       floatingActionButton: floatingActionButton,
       bottomNavigationBar: bottomNavigationBar,
@@ -89,7 +102,7 @@ class AppScaffold extends StatelessWidget {
           Positioned.fill(
             child: RepaintBoundary(
               child: CustomPaint(
-                painter: _StarPatternPainter(dark: dark),
+                painter: _StarPatternPainter(dark: isDark),
               ),
             ),
           ),
@@ -280,14 +293,12 @@ class SectionTitle extends StatelessWidget {
 
 // ---------------- Minimal floating navigation (main tabs ONLY) ----------------
 
-/// Minimal floating bottom nav — NO background container, NO pill, NO
-/// border, NO shadow. Just 3 tappable items in a transparent Row,
-/// floating slightly above the system gesture area (SafeArea supplies
-/// the bottom inset). Active item: green rounded rectangle with a white
-/// icon + white label; inactive items: muted grey icon + label, no
-/// background at all. Custom widget — NOT BottomNavigationBar and NOT
-/// Material NavigationBar. Shown only on the 3 main tabs (Home/Prayer/
-/// Me); sub-screens are plain AppScaffolds with no bar at all.
+/// Floating bottom nav (v3.3, preview style): a dark translucent pill
+/// container with 3 items in a row (icon + label side by side). Active
+/// item: green rounded pill with a white icon + white label; inactive
+/// items: muted grey-green icon + label, no background. Shown only on
+/// the 3 main tabs (Home/Prayer/Me); sub-screens are plain
+/// AppScaffolds with no bar at all.
 class MainNavBar extends StatelessWidget {
   const MainNavBar({super.key});
 
@@ -299,32 +310,47 @@ class MainNavBar extends StatelessWidget {
         return SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _NavItem(
-                  icon: Icons.home_outlined,
-                  selectedIcon: Icons.home,
-                  label: tr('tab_home'),
-                  selected: index == 0,
-                  onTap: () => goToTab(0),
-                ),
-                _NavItem(
-                  icon: Icons.access_time_outlined,
-                  selectedIcon: Icons.access_time,
-                  label: tr('tab_prayer'),
-                  selected: index == 1,
-                  onTap: () => goToTab(1),
-                ),
-                _NavItem(
-                  icon: Icons.person_outline,
-                  selectedIcon: Icons.person,
-                  label: tr('tab_me'),
-                  selected: index == 2,
-                  onTap: () => goToTab(2),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: v33NavBar.withOpacity(0.92),
+                borderRadius: BorderRadius.circular(18),
+                border:
+                    Border.all(color: Colors.white.withOpacity(0.1)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 26,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(6),
+              child: Row(
+                children: [
+                  _NavItem(
+                    icon: Icons.home_outlined,
+                    selectedIcon: Icons.home,
+                    label: tr('tab_home'),
+                    selected: index == 0,
+                    onTap: () => goToTab(0),
+                  ),
+                  _NavItem(
+                    icon: Icons.access_time_outlined,
+                    selectedIcon: Icons.access_time,
+                    label: tr('tab_prayer'),
+                    selected: index == 1,
+                    onTap: () => goToTab(1),
+                  ),
+                  _NavItem(
+                    icon: Icons.person_outline,
+                    selectedIcon: Icons.person,
+                    label: tr('tab_me'),
+                    selected: index == 2,
+                    onTap: () => goToTab(2),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -349,32 +375,35 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // onSurfaceVariant is a readable muted grey in both light and dark.
-    final inactiveColor = Theme.of(context).colorScheme.onSurfaceVariant;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? primaryGreen : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(selected ? selectedIcon : icon,
-                size: 24,
-                color: selected ? Colors.white : inactiveColor),
-            const SizedBox(height: 2),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight:
-                        selected ? FontWeight.w700 : FontWeight.w500,
-                    color: selected ? Colors.white : inactiveColor)),
-          ],
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? v33Green : Colors.transparent,
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(selected ? selectedIcon : icon,
+                  size: 22,
+                  color: selected ? Colors.white : v33Muted),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Text(label,
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
+                        color: selected ? Colors.white : v33Muted),
+                    overflow: TextOverflow.ellipsis),
+              ),
+            ],
+          ),
         ),
       ),
     );
