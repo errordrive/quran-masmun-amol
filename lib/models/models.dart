@@ -95,12 +95,20 @@ class TasbihItem {
   final String englishName;
   final int target;
   final bool custom;
+  // Transliteration + meaning shown on the 3D counter card (v3.1).
+  // Empty for custom dhikrs, which only carry arabic + english names.
+  final String transliteration;
+  final String meaningBn;
+  final String meaningEn;
   const TasbihItem({
     required this.id,
     required this.arabicName,
     required this.englishName,
     required this.target,
     this.custom = false,
+    this.transliteration = '',
+    this.meaningBn = '',
+    this.meaningEn = '',
   });
 }
 
