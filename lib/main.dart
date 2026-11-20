@@ -17,6 +17,7 @@ import 'services/navigation.dart';
 import 'services/widget_service.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
+import 'widgets/dark_ui.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -301,14 +302,21 @@ class _MainShellState extends State<MainShell> with RouteAware {
         valueListenable: isTopLevelRoute,
         builder: (context, topLevel, _) {
           return AppScaffold(
+            scaffoldBackground: v33Background,
             bottomNavigationBar: topLevel ? const MainNavBar() : null,
-            body: IndexedStack(
-              index: _index,
-              children: const [
-                SafeArea(child: HomeScreen()),
-                SafeArea(child: PrayerScreen()),
-                SafeArea(child: MeScreen()),
-              ],
+            // v3.3: the three main tabs sit on the dark emerald palette
+            // (with the preview's radial glows) instead of the old
+            // light cream background. Sub-screens are pushed on the
+            // root navigator, so this never affects them.
+            body: DarkGlowBackground(
+              child: IndexedStack(
+                index: _index,
+                children: const [
+                  SafeArea(child: HomeScreen()),
+                  SafeArea(child: PrayerScreen()),
+                  SafeArea(child: MeScreen()),
+                ],
+              ),
             ),
           );
         },
