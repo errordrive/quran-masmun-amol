@@ -17,6 +17,7 @@ import '../services/quran_service.dart';
 import '../services/strings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/dark_ui.dart';
 
 const String _bismillah = 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
 const String _bismillahTransliteration =
@@ -28,18 +29,18 @@ class QuranListScreen extends StatefulWidget {
   State<QuranListScreen> createState() => _QuranListScreenState();
 }
 
-class _QuranListScreenState extends State<QuranListScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _QuranListScreenState extends State<QuranListScreen> {
   List<Surah> _surahs = [];
   bool _loading = true;
   bool _failed = false;
   String _query = '';
+  // List filter (preview chips): 'all' | 'meccan' | 'medinan' |
+  // 'bookmarked' | 'juz' (the Juz list replaces the old Juz tab).
+  String _filter = 'all';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _load();
   }
 
@@ -54,55 +55,104 @@ class _QuranListScreenState extends State<QuranListScreen>
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final state = AppState.instance;
-    final filtered = QuranService.instance.searchSurahs(_surahs, _query);
+    var filtered = QuranService.instance.searchSurahs(_surahs, _query);
+    if (_filter == 'meccan') {
+      filtered =
+          filtered.where((s) => s.revelationType == 'Meccan').toList();
+    } else if (_filter == 'medinan') {
+      filtered =
+          filtered.where((s) => s.revelationType == 'Medinan').toList();
+    } else if (_filter == 'bookmarked') {
+      // Surahs that have at least one bookmarked ayah (keys "surah:ayah").
+      final marked = <int>{};
+      for (final key in state.bookmarks) {
+        final n = int.tryParse(key.split(':').first);
+        if (n != null) marked.add(n);
+      }
+      filtered = filtered.where((s) => marked.contains(s.number)).toList();
+    }
     final counts = {for (final s in _surahs) s.number: s.ayahs.length};
     final juzList = buildJuzList(counts);
+    final lastSurah = state.lastSurah > 0
+        ? QuranService.instance.surahByNumber(_surahs, state.lastSurah)
+        : null;
 
     return AppScaffold(
+      dark: true,
       appBar: AppBar(
-        title: Text(tr('quran')),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: goldAccent,
-          tabs: [
-            Tab(text: tr('surah')),
-            Tab(text: tr('juz')),
+        backgroundColor: v33Background,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tr('quran'),
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(tr('quran_sub'),
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white70)),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bookmark_outline),
+            tooltip: tr('bookmarked'),
+            onPressed: () => setState(() => _filter = 'bookmarked'),
+          ),
+        ],
       ),
       body: _loading
-          ? const LoadingState()
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(color: v33Green),
+                  const SizedBox(height: 16),
+                  Text(tr('loading'),
+                      style: const TextStyle(color: v33Muted)),
+                ],
+              ),
+            )
           : _failed
               ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      EmptyState(
-                        icon: Icons.error_outline,
-                        title: tr('quran_load_failed'),
-                        subtitle: tr('quran_load_failed_sub'),
-                      ),
-                      const SizedBox(height: 16),
-                      PrimaryButton(
-                        label: tr('retry'),
-                        icon: Icons.refresh,
-                        expanded: false,
-                        onPressed: () {
-                          setState(() => _loading = true);
-                          _load();
-                        },
-                      ),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 40, color: v33GreenLight),
+                        const SizedBox(height: 16),
+                        Text(tr('quran_load_failed'),
+                            style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: v33Text),
+                            textAlign: TextAlign.center),
+                        const SizedBox(height: 8),
+                        Text(tr('quran_load_failed_sub'),
+                            style: const TextStyle(color: v33Muted),
+                            textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                              backgroundColor: v33Green,
+                              foregroundColor: Colors.white),
+                          onPressed: () {
+                            setState(() => _loading = true);
+                            _load();
+                          },
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: Text(tr('retry')),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : Column(
@@ -110,50 +160,164 @@ class _QuranListScreenState extends State<QuranListScreen>
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                       child: TextField(
+                        style: const TextStyle(color: v33Text),
                         decoration: InputDecoration(
                           hintText: tr('search_surah_hint'),
-                          prefixIcon: const Icon(Icons.search),
+                          hintStyle: const TextStyle(color: v33Muted),
+                          prefixIcon:
+                              const Icon(Icons.search, color: v33Muted),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.07),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(13),
+                            borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.08)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(13),
+                            borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.08)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(13),
+                            borderSide: const BorderSide(
+                                color: v33Green, width: 2),
+                          ),
                         ),
                         onChanged: (v) => setState(() => _query = v),
                       ),
                     ),
-                    if (state.lastSurah > 0)
+                    // Continue Reading card (preview .cont): gradient
+                    // hero with the real last-read surah/ayah + progress.
+                    if (lastSurah != null)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: () {
-                              final s = QuranService.instance
-                                  .surahByNumber(_surahs, state.lastSurah);
-                              if (s != null) {
-                                Navigator.of(context, rootNavigator: true).push(
-                                  MaterialPageRoute(
-                                      builder: (_) => QuranReaderScreen(
-                                          surah: s,
-                                          surahs: _surahs,
-                                          initialAyah: state.lastAyah)),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.bookmark, size: 18),
-                            label: Text(
-                                '${tr('continue_reading')}: ${_surahDisplayName(_surahs, state.lastSurah)} · ${tr('ayah')} ${state.lastAyah}'),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.of(context, rootNavigator: true).push(
+                              MaterialPageRoute(
+                                  builder: (_) => QuranReaderScreen(
+                                      surah: lastSurah,
+                                      surahs: _surahs,
+                                      initialAyah: state.lastAyah)),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(18),
+                          child: Container(
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              gradient: v33HeroGradient,
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.4),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                          '✦ ${tr('continue_reading')}',
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              letterSpacing: 1,
+                                              color: Color(0xFFBFE3D2),
+                                              fontWeight: FontWeight.w700)),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: v33Gold.withOpacity(0.14),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '${(state.lastAyah / lastSurah.ayahs.length * 100).round()}%',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: v33Gold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  '${AppState.instance.isBangla ? bnSurahName(lastSurah.number) : lastSurah.englishName}  ${lastSurah.name}',
+                                  style: const TextStyle(
+                                      fontSize: 19,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  '${tr('ayah')} ${state.lastAyah} / ${lastSurah.ayahs.length} • ${tr(lastSurah.revelationType == 'Meccan' ? 'meccan' : 'medinan')}',
+                                  style: const TextStyle(
+                                      fontSize: 12.5,
+                                      color: Color(0xFFD9EDE3)),
+                                ),
+                                const SizedBox(height: 9),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(3),
+                                  child: LinearProgressIndicator(
+                                    value: (state.lastAyah /
+                                            lastSurah.ayahs.length)
+                                        .clamp(0.0, 1.0),
+                                    minHeight: 5,
+                                    backgroundColor:
+                                        Colors.white.withOpacity(0.18),
+                                    valueColor:
+                                        const AlwaysStoppedAnimation<Color>(
+                                            v33Gold),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _SurahTab(
-                            surahs: filtered,
-                            allSurahs: _surahs,
-                            query: _query,
-                          ),
-                          _JuzTab(juzList: juzList, surahs: _surahs),
-                        ],
+                    // Filter chips (preview .chips).
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final (key, label) in [
+                              ('all', tr('all')),
+                              ('meccan', tr('meccan')),
+                              ('medinan', tr('medinan')),
+                              ('bookmarked', '🔖 ${tr('bookmarked')}'),
+                              ('juz', tr('juz')),
+                            ])
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: V33Chip(
+                                  label: label,
+                                  active: _filter == key,
+                                  onTap: () =>
+                                      setState(() => _filter = key),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: _filter == 'juz'
+                          ? _JuzTab(juzList: juzList, surahs: _surahs)
+                          : _SurahTab(
+                              surahs: filtered,
+                              allSurahs: _surahs,
+                              query: _query,
+                            ),
                     ),
                   ],
                 ),
@@ -186,51 +350,116 @@ class _SurahTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final bn = AppState.instance.isBangla;
     if (surahs.isEmpty) {
-      return EmptyState(
-        icon: Icons.search_off,
-        title: tr('no_surah_found'),
-        subtitle: query.isEmpty
-            ? tr('surah_list_empty')
-            : tr('no_surah_match'),
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.search_off, size: 44, color: v33Muted),
+            const SizedBox(height: 12),
+            Text(tr('no_surah_found'),
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: v33Text)),
+            const SizedBox(height: 4),
+            Text(
+              query.isEmpty
+                  ? tr('surah_list_empty')
+                  : tr('no_surah_match'),
+              style: const TextStyle(color: v33Muted),
+            ),
+          ],
+        ),
       );
     }
-    return ListView.builder(
-      itemCount: surahs.length,
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
-      itemBuilder: (context, i) {
-        final s = surahs[i];
-        final displayName = bn ? bnSurahName(s.number) : s.englishName;
-        final meaning = bn
-            ? bnSurahMeaning(s.number)
-            : s.englishNameTranslation;
-        final revelation = bn
-            ? tr(s.revelationType == 'Meccan' ? 'meccan' : 'medinan')
-            : s.revelationType;
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: primaryGreen.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text('${s.number}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, color: primaryGreen)),
+    return ListenableBuilder(
+      listenable: AppState.instance,
+      builder: (context, _) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.055),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
             ),
-            title: Text(displayName,
-                style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Text(
-                '$meaning · ${s.ayahs.length} ${tr('ayahs')} · $revelation'),
-            trailing: Text(s.name,
-                style: const TextStyle(fontSize: 20, color: primaryGreen)),
-            onTap: () => Navigator.of(context, rootNavigator: true).push(
-              MaterialPageRoute(
-                  builder: (_) =>
-                      QuranReaderScreen(surah: s, surahs: allSurahs)),
+            child: ListView.separated(
+              itemCount: surahs.length,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              separatorBuilder: (_, __) =>
+                  Divider(height: 1, color: Colors.white.withOpacity(0.06)),
+              itemBuilder: (context, i) {
+                final s = surahs[i];
+                final displayName = bn ? bnSurahName(s.number) : s.englishName;
+                final meaning = bn
+                    ? bnSurahMeaning(s.number)
+                    : s.englishNameTranslation;
+                final revelation = bn
+                    ? tr(s.revelationType == 'Meccan' ? 'meccan' : 'medinan')
+                    : s.revelationType;
+                // Gold bookmark icon when any ayah of this surah is bookmarked.
+                final bookmarked = AppState.instance.bookmarks
+                    .any((b) => b.startsWith('${s.number}:'));
+                return InkWell(
+                  onTap: () =>
+                      Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            QuranReaderScreen(surah: s, surahs: allSurahs)),
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: v33Green.withOpacity(0.16),
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: Text(
+                              bn ? v33BnDigits(s.number) : '${s.number}',
+                              style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: v33GreenLight)),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(displayName,
+                                  style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: v33Text)),
+                              const SizedBox(height: 1),
+                              Text(
+                                  '$meaning · ${s.ayahs.length} ${tr('ayahs')} · $revelation',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: v33Muted)),
+                            ],
+                          ),
+                        ),
+                        if (bookmarked)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 6),
+                            child: Icon(Icons.bookmark,
+                                size: 18, color: v33Gold),
+                          ),
+                        Text(s.name,
+                            style: const TextStyle(
+                                fontSize: 19, color: Color(0xFFD9EDE3))),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         );
@@ -246,45 +475,83 @@ class _JuzTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: juzList.length,
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
-      itemBuilder: (context, i) {
-        final j = juzList[i];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: primaryGreen.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.055),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+        ),
+        child: ListView.separated(
+          itemCount: juzList.length,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          separatorBuilder: (_, __) =>
+              Divider(height: 1, color: Colors.white.withOpacity(0.06)),
+          itemBuilder: (context, i) {
+            final j = juzList[i];
+            return InkWell(
+              onTap: () {
+                final s = QuranService.instance
+                    .surahByNumber(surahs, j.startSurah);
+                if (s != null) {
+                  Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute(
+                        builder: (_) => QuranReaderScreen(
+                            surah: s,
+                            surahs: surahs,
+                            initialAyah: j.startAyah)),
+                  );
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: v33Green.withOpacity(0.16),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Text(
+                          AppState.instance.isBangla
+                              ? v33BnDigits(j.number)
+                              : '${j.number}',
+                          style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: v33GreenLight)),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${tr('juz')} ${j.number}',
+                              style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: v33Text)),
+                          const SizedBox(height: 1),
+                          Text(juzRangeText(j, surahs),
+                              style: const TextStyle(
+                                  fontSize: 12, color: v33Muted)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, color: v33Muted),
+                  ],
+                ),
               ),
-              child: Text('${j.number}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, color: primaryGreen)),
-            ),
-            title: Text('${tr('juz')} ${j.number}',
-                style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Text(juzRangeText(j, surahs)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              final s = QuranService.instance.surahByNumber(surahs, j.startSurah);
-              if (s != null) {
-                Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute(
-                      builder: (_) => QuranReaderScreen(
-                          surah: s,
-                          surahs: surahs,
-                          initialAyah: j.startAyah)),
-                );
-              }
-            },
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 }
