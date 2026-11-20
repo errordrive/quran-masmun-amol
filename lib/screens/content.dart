@@ -847,6 +847,7 @@ class TasbihListScreen extends StatelessWidget {
                             label: bn
                                 ? (_tasbihBnNames[t.id] ?? t.englishName)
                                 : t.englishName,
+                            active: false,
                             onTap: () => Navigator.of(context,
                                     rootNavigator: true)
                                 .push(MaterialPageRoute(
