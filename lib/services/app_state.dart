@@ -2,10 +2,13 @@
 // Everything is persisted locally with SharedPreferences. No account, no
 // network: Google sign-in and Play Billing are wired later (see README).
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/cities.dart';
 import '../data/duas.dart';
+import '../data/hadith.dart';
+import '../data/surah_ayah_counts.dart';
 import '../models/models.dart';
 import 'prayer.dart';
 
@@ -31,6 +34,16 @@ class AppState extends ChangeNotifier {
   bool asrHanafi = false;
   bool vibrationOn = true;
   String cityName = 'Dhaka';
+
+  // ---- Azan notifications (v2.0) ----
+  bool azanEnabled = true; // master toggle
+  // Per-prayer toggles, index 0..4 = Fajr, Dhuhr, Asr, Maghrib, Isha.
+  final List<bool> azanPrayers = [true, true, true, true, true];
+  bool azanPermAsked = false; // notification permission asked once
+
+  // ---- Khatam tracker (v2.0) ----
+  final Set<int> readSurahs = {}; // surah numbers marked as read
+  int khatamDailyGoal = 20; // ayahs per day
 
   // ---- Local account data (guest) ----
   int credits = 0;
@@ -68,6 +81,18 @@ class AppState extends ChangeNotifier {
     asrHanafi = _prefs.getBool('asrHanafi') ?? false;
     vibrationOn = _prefs.getBool('vibrationOn') ?? true;
     cityName = _prefs.getString('city') ?? 'Dhaka';
+    azanEnabled = _prefs.getBool('azanEnabled') ?? true;
+    azanPermAsked = _prefs.getBool('azanPermAsked') ?? false;
+    final azanList = _prefs.getStringList('azanPrayers');
+    if (azanList != null && azanList.length == 5) {
+      for (var i = 0; i < 5; i++) {
+        azanPrayers[i] = azanList[i] == '1';
+      }
+    }
+    readSurahs.addAll((_prefs.getStringList('readSurahs') ?? const [])
+        .map((e) => int.tryParse(e) ?? -1)
+        .where((n) => n >= 1 && n <= 114));
+    khatamDailyGoal = _prefs.getInt('khatamDailyGoal') ?? 20;
     credits = _prefs.getInt('credits') ?? 0;
     favoriteDuas.addAll(_prefs.getStringList('favoriteDuas') ?? const []);
     favoriteHadiths.addAll(_prefs.getStringList('favoriteHadiths') ?? const []);
@@ -134,6 +159,13 @@ class AppState extends ChangeNotifier {
     await _prefs.setBool('asrHanafi', asrHanafi);
     await _prefs.setBool('vibrationOn', vibrationOn);
     await _prefs.setString('city', cityName);
+    await _prefs.setBool('azanEnabled', azanEnabled);
+    await _prefs.setBool('azanPermAsked', azanPermAsked);
+    await _prefs.setStringList('azanPrayers',
+        azanPrayers.map((v) => v ? '1' : '0').toList());
+    await _prefs.setStringList(
+        'readSurahs', readSurahs.map((n) => '$n').toList());
+    await _prefs.setInt('khatamDailyGoal', khatamDailyGoal);
     await _prefs.setInt('credits', credits);
     await _prefs.setStringList('favoriteDuas', favoriteDuas.toList());
     await _prefs.setStringList('favoriteHadiths', favoriteHadiths.toList());
@@ -223,6 +255,55 @@ class AppState extends ChangeNotifier {
 
   void setCity(String name) {
     cityName = name;
+    _save();
+    notifyListeners();
+  }
+
+  // ---- Azan notifications (v2.0) ----
+  bool azanFor(int index) =>
+      azanEnabled && index >= 0 && index < 5 && azanPrayers[index];
+
+  void setAzanEnabled(bool v) {
+    azanEnabled = v;
+    _save();
+    notifyListeners();
+  }
+
+  void setAzanPrayer(int index, bool v) {
+    if (index < 0 || index >= 5) return;
+    azanPrayers[index] = v;
+    _save();
+    notifyListeners();
+  }
+
+  void markAzanPermAsked() {
+    azanPermAsked = true;
+    _save();
+  }
+
+  // ---- Khatam tracker (v2.0) ----
+  bool isSurahRead(int surahNumber) => readSurahs.contains(surahNumber);
+
+  void toggleSurahRead(int surahNumber) {
+    if (readSurahs.contains(surahNumber)) {
+      readSurahs.remove(surahNumber);
+    } else {
+      readSurahs.add(surahNumber);
+    }
+    _save();
+    notifyListeners();
+  }
+
+  int khatamReadAyahs() {
+    var total = 0;
+    for (final n in readSurahs) {
+      total += ayahsInSurah(n);
+    }
+    return total;
+  }
+
+  void setKhatamDailyGoal(int goal) {
+    khatamDailyGoal = goal;
     _save();
     notifyListeners();
   }
@@ -384,12 +465,23 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ---- Daily Dua ----
+  // ---- Daily Dua (v1.2): a different dua every day, picked by a
+  // date-seeded pseudo-random draw — same dua all day, a random-feeling
+  // (never sequential) one each day, fully offline and deterministic
+  // for a given date. Seed: year * 372 + month * 31 + day.
   Dua dailyDua([DateTime? date]) {
     final d = date ?? DateTime.now();
-    final dayOfYear =
-        d.difference(DateTime(d.year, 1, 1)).inDays;
-    return duas[dayOfYear % duas.length];
+    final seed = d.year * 372 + d.month * 31 + d.day;
+    return duas[Random(seed).nextInt(duas.length)];
+  }
+
+  /// Daily Hadith (v2.0): same date-seeded random pattern as the daily
+  /// dua — same hadith all day, a different random-feeling one each
+  /// day, from the bundled 48 hadiths, fully offline.
+  Hadith dailyHadith([DateTime? date]) {
+    final d = date ?? DateTime.now();
+    final seed = d.year * 372 + d.month * 31 + d.day;
+    return hadiths[Random(seed).nextInt(hadiths.length)];
   }
 
   DayPrayerTimes prayerTimesFor(DateTime date) => computePrayerTimes(
