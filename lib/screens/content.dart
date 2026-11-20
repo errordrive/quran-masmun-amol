@@ -1,6 +1,7 @@
 // Content screens: dua categories + detail, hadith collections + detail,
 // tasbih list + counter, and full search (local data only, 300ms debounce).
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../data/asmaul_husna.dart';
@@ -534,6 +535,32 @@ class TasbihListScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              // Dhikr preset quick chips: tap a preset to open its counter.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final t in defaultTasbihs.take(5))
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ActionChip(
+                            avatar: const Icon(Icons.fingerprint,
+                                size: 16, color: primaryGreen),
+                            label: Text(t.englishName),
+                            onPressed: () => Navigator.of(context,
+                                    rootNavigator: true)
+                                .push(MaterialPageRoute(
+                                    builder: (_) =>
+                                        TasbihCounterScreen(item: t))),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
               Expanded(
                 child: ListView.builder(
                   itemCount: items.length,
@@ -661,6 +688,58 @@ class TasbihCounterScreen extends StatefulWidget {
 
 class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
   bool _pressed = false;
+  // Session target override (33/99/100/500/1000 selector). Null = the
+  // dhikr's own stored target. The stored TasbihItem is never mutated.
+  int? _targetOverride;
+  // Animated progress value for the smooth bead ring.
+  double _animatedProgress = 0;
+  // Count value the celebration dialog was last shown for (so it fires
+  // once per target reach, not on every rebuild).
+  int? _celebratedFor;
+
+  int get _target => _targetOverride ?? widget.item.target;
+
+  static const List<int> _targetOptions = [33, 99, 100, 500, 1000];
+
+  void _onTap(int count) {
+    final state = AppState.instance;
+    final next = count + 1;
+    final reached = next == _target;
+    state.setTasbihCount(widget.item.id, next);
+    state.recordTasbihTap();
+    if (state.vibrationOn) {
+      if (reached) {
+        // Distinct buzz on target reached: heavy impact + vibration.
+        HapticFeedback.heavyImpact();
+        HapticFeedback.vibrate();
+      } else {
+        HapticFeedback.lightImpact();
+      }
+    }
+    if (reached && _celebratedFor != next) {
+      _celebratedFor = next;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showCelebration(next);
+      });
+    }
+  }
+
+  Future<void> _showCelebration(int count) async {
+    final again = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (d) => _CelebrationDialog(
+        dhikrName: widget.item.englishName,
+        arabicName: widget.item.arabicName,
+        count: count,
+      ),
+    );
+    if (again == true && mounted) {
+      AppState.instance.resetTasbih(widget.item.id);
+      setState(() => _celebratedFor = null);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -669,9 +748,12 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
       listenable: state,
       builder: (context, _) {
         final count = state.tasbihCount(widget.item.id);
-        final done = count >= widget.item.target;
+        final done = count >= _target;
         final progress =
-            (count / widget.item.target).clamp(0.0, 1.0).toDouble();
+            (count / _target).clamp(0.0, 1.0).toDouble();
+        final todayTotal = state.tasbihTodayTotal();
+        final streak = state.tasbihStreak();
+        final bn = state.isBangla;
         return AppScaffold(
           appBar: AppBar(title: Text(widget.item.englishName)),
           body: Padding(
@@ -683,45 +765,112 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
                     style: const TextStyle(
                         fontSize: 30, color: primaryGreen, height: 1.8)),
                 const SizedBox(height: 8),
-                Text('${widget.item.englishName} · ${tr('target')} ${widget.item.target}',
+                Text('${widget.item.englishName} · ${tr('target')} $_target',
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                const SizedBox(height: 32),
+                const SizedBox(height: 12),
+                // Today's total + streak.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _MiniStat(
+                      icon: Icons.today,
+                      label: tr('todays_total'),
+                      value: '$todayTotal',
+                    ),
+                    const SizedBox(width: 12),
+                    _MiniStat(
+                      icon: Icons.local_fire_department,
+                      label: tr('daily_streak'),
+                      value: streak == 0
+                          ? tr('no_streak_yet')
+                          : '$streak ${streak == 1 ? tr('day') : tr('days')}',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Target selector: 33 / 99 / 100 / 500 / 1000.
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (final opt in _targetOptions)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text('$opt'),
+                            selected: _target == opt,
+                            onSelected: (_) => setState(() {
+                              _targetOverride = opt;
+                              _celebratedFor = null;
+                            }),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // Target-reached banner.
+                if (done) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: primaryGreen,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.celebration,
+                            color: Color(0xFFFFD54F), size: 22),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            bn
+                                ? 'মাশাআল্লাহ! লক্ষ্য পূরণ হয়েছে — $_target বার'
+                                : 'MashaAllah! Target reached — $_target times',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
                 Expanded(
                   child: Center(
                     child: GestureDetector(
                       onTapDown: (_) => setState(() => _pressed = true),
                       onTapUp: (_) => setState(() => _pressed = false),
                       onTapCancel: () => setState(() => _pressed = false),
-                      onTap: () {
-                        final next = count + 1;
-                        state.setTasbihCount(widget.item.id, next);
-                        state.recordTasbihTap();
-                        if (state.vibrationOn) {
-                          if (next == widget.item.target) {
-                            HapticFeedback.heavyImpact();
-                          } else {
-                            HapticFeedback.lightImpact();
-                          }
-                        }
-                      },
+                      onTap: () => _onTap(count),
                       child: AnimatedScale(
                         scale: _pressed ? 0.94 : 1.0,
                         duration: const Duration(milliseconds: 120),
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            // Thin progress ring around the circle.
-                            SizedBox(
-                              width: 284,
-                              height: 284,
-                              child: CircularProgressIndicator(
-                                value: progress,
-                                strokeWidth: 6,
-                                backgroundColor:
-                                    primaryGreen.withOpacity(0.12),
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                    primaryGreen),
+                            // Smooth bead ring: 33 beads fill as progress
+                            // grows; the value animates instead of jumping.
+                            TweenAnimationBuilder<double>(
+                              tween: Tween<double>(
+                                  begin: _animatedProgress, end: progress),
+                              duration: const Duration(milliseconds: 350),
+                              curve: Curves.easeOut,
+                              onEnd: () => _animatedProgress = progress,
+                              builder: (context, value, _) => SizedBox(
+                                width: 284,
+                                height: 284,
+                                child: CustomPaint(
+                                  painter: _BeadRingPainter(
+                                      progress: value, beadCount: 33),
+                                ),
                               ),
                             ),
                             Container(
@@ -753,7 +902,7 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
                                           color: done
                                               ? Colors.white
                                               : primaryGreen)),
-                                  Text('/ ${widget.item.target}',
+                                  Text('/ $_target',
                                       style: TextStyle(
                                           fontSize: 18,
                                           color: done
@@ -802,6 +951,7 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
                           );
                           if (confirm == true) {
                             state.resetTasbih(widget.item.id);
+                            setState(() => _celebratedFor = null);
                           }
                         },
                       ),
@@ -828,6 +978,227 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
       },
     );
   }
+}
+
+/// Small today-total / streak pill used above the tasbih counter.
+class _MiniStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _MiniStat(
+      {required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: primaryGreen.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: primaryGreen),
+          const SizedBox(width: 6),
+          Text('$label: ',
+              style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: primaryGreen)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bead ring: [beadCount] beads arranged in a circle; beads up to
+/// [progress] are filled green, the rest are faint. Drawn with widgets
+/// only — no new packages.
+class _BeadRingPainter extends CustomPainter {
+  final double progress;
+  final int beadCount;
+  const _BeadRingPainter({required this.progress, required this.beadCount});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 8;
+    // Faint track circle.
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = primaryGreen.withOpacity(0.12)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+    final filled = (progress * beadCount).round();
+    for (var i = 0; i < beadCount; i++) {
+      final angle = -math.pi / 2 + (2 * math.pi * i / beadCount);
+      final pos = center +
+          Offset(math.cos(angle) * radius, math.sin(angle) * radius);
+      final isFilled = i < filled;
+      canvas.drawCircle(
+        pos,
+        isFilled ? 6 : 4.5,
+        Paint()
+          ..color = isFilled
+              ? primaryGreen
+              : primaryGreen.withOpacity(0.18),
+      );
+      if (isFilled) {
+        canvas.drawCircle(
+          pos + const Offset(-1.5, -1.5),
+          2,
+          Paint()..color = Colors.white.withOpacity(0.7),
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BeadRingPainter old) =>
+      old.progress != progress || old.beadCount != beadCount;
+}
+
+/// Completion celebration dialog: gold + green, with a widget-only
+/// confetti animation (falling dots, no new packages).
+class _CelebrationDialog extends StatefulWidget {
+  final String dhikrName;
+  final String arabicName;
+  final int count;
+  const _CelebrationDialog({
+    required this.dhikrName,
+    required this.arabicName,
+    required this.count,
+  });
+
+  @override
+  State<_CelebrationDialog> createState() => _CelebrationDialogState();
+}
+
+class _CelebrationDialogState extends State<_CelebrationDialog>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bn = AppState.instance.isBangla;
+    return AlertDialog(
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 120,
+            width: double.infinity,
+            child: AnimatedBuilder(
+              animation: _ctrl,
+              builder: (context, _) => CustomPaint(
+                painter: _ConfettiPainter(progress: _ctrl.value),
+              ),
+            ),
+          ),
+          const Icon(Icons.celebration, size: 48, color: primaryGreen),
+          const SizedBox(height: 8),
+          Text(
+            bn ? 'মাশাআল্লাহ!' : 'MashaAllah!',
+            style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: primaryGreen),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            bn
+                ? 'লক্ষ্য পূরণ হয়েছে — ${widget.count} বার'
+                : 'Target reached — ${widget.count} times',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 15),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.arabicName,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 20, color: primaryGreen),
+          ),
+          Text(widget.dhikrName,
+              style: const TextStyle(color: Colors.grey)),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(bn ? 'চালিয়ে যান' : 'Continue'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(bn ? 'আবার শুরু করুন' : 'Start again'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Falling confetti dots (green + gold), driven by [progress] 0..1.
+class _ConfettiPainter extends CustomPainter {
+  final double progress;
+  const _ConfettiPainter({required this.progress});
+
+  static const List<Color> _colors = [
+    primaryGreen,
+    Color(0xFFC9A227),
+    Color(0xFF2E7D32),
+    Color(0xFFFFD54F),
+    Color(0xFF66BB6A),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (var i = 0; i < 42; i++) {
+      final rnd = math.Random(i * 7 + 3);
+      final x = rnd.nextDouble() * size.width;
+      final startY = rnd.nextDouble() * size.height * 0.4;
+      final speed = 0.5 + rnd.nextDouble();
+      final y = (startY + progress * speed * size.height) % size.height;
+      final sway = math.sin((progress * 6 + i) * 1.3) * 8;
+      final color = _colors[i % _colors.length];
+      final r = 3 + rnd.nextDouble() * 3;
+      if (i % 3 == 0) {
+        canvas.drawRect(
+          Rect.fromCenter(
+              center: Offset(x + sway, y), width: r * 2, height: r * 1.4),
+          Paint()..color = color,
+        );
+      } else {
+        canvas.drawCircle(
+          Offset(x + sway, y),
+          r,
+          Paint()..color = color,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter old) => old.progress != progress;
 }
 
 // ---------------- Search ----------------
