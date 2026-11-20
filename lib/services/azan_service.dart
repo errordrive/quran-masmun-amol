@@ -1,11 +1,14 @@
-// Azan notifications (v2.0): local notifications fired at the 5 daily
-// prayer times, using the app's own on-device prayer-time calculation
-// (same source as the Prayer tab: selected city + method). No server,
-// no Firebase — everything is scheduled on the device.
+// Azan notifications (v2.0, auto-reschedule v3.2): local notifications
+// fired at the 5 daily prayer times, using the app's own on-device
+// prayer-time calculation (same source as the Prayer tab: selected city
+// + method). No server, no Firebase — everything is scheduled on the
+// device.
 //
 // - Schedules today + tomorrow on app start (and whenever azan settings,
-//   city or method change); after a phone restart, opening the app once
-//   re-schedules everything.
+//   city or method change). After a phone restart, the native
+//   BootReceiver runs the `bootReschedule` Dart entrypoint, which
+//   re-schedules everything with no UI — the user never has to open
+//   the app. TIME_SET / TIMEZONE_CHANGED re-schedule the same way.
 // - Sound: the bundled real azan recording (android/.../res/raw/azan.mp3)
 //   when AppState.azanSoundEnabled is on, otherwise the default sound.
 //   Android fixes a channel's sound at creation time, so the azan sound
@@ -57,6 +60,101 @@ class AzanService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Whether exact alarms can be scheduled (Android 12+). True on
+  /// older Android (no such restriction) and on any error — callers
+  /// treat "unknown" as "allowed" and let scheduling fall back.
+  static Future<bool> canScheduleExactAlarms() async {
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android == null) return true;
+      return await android.canScheduleExactNotifications() ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Opens the system "Alarms & reminders" screen so the user can
+  /// grant exact-alarm permission. No-op if already granted or
+  /// unavailable on this device. Never throws.
+  static Future<void> requestExactAlarms() async {
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await android?.requestExactAlarmsPermission();
+    } catch (_) {}
+  }
+
+  /// Notification permission only (no exact-alarm prompt). Returns
+  /// true if notifications are allowed. Never throws.
+  static Future<bool> requestNotificationPermission() async {
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android == null) return true;
+      return await android.requestNotificationsPermission() ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Fires a test azan notification ~5 seconds from now, using the
+  /// same channel and sound as a real azan (sound toggle respected),
+  /// so the user can verify the sound + notification without waiting
+  /// for the next prayer. Uses id 999, far from the prayer ids
+  /// (100..). Fires even if the master azan toggle is off — it is a
+  /// manual sound test, not a prayer reminder. Never throws.
+  static Future<void> scheduleTestAzan() async {
+    try {
+      await init();
+      final state = AppState.instance;
+      final soundOn = state.azanSoundEnabled;
+      final details = NotificationDetails(
+        android: AndroidNotificationDetails(
+          soundOn ? 'azan_sound_channel' : 'azan_channel',
+          'আজান নোটিফিকেশন',
+          channelDescription: 'নামাজের সময়ের নোটিফিকেশন',
+          importance: Importance.high,
+          priority: Priority.high,
+          sound: soundOn
+              ? const RawResourceAndroidNotificationSound('azan')
+              : null,
+        ),
+      );
+      final when = tz.TZDateTime.now(tz.UTC).add(const Duration(seconds: 5));
+      final title =
+          state.isBangla ? 'আজান পরীক্ষা' : 'Azan test';
+      final body = state.isBangla
+          ? 'এটি একটি পরীক্ষামূলক আজান নোটিফিকেশন — শব্দ শুনতে পাচ্ছেন কি?'
+          : 'This is a test azan notification — can you hear the sound?';
+      try {
+        await _plugin.zonedSchedule(
+          999,
+          title,
+          body,
+          when,
+          details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } catch (_) {
+        try {
+          await _plugin.zonedSchedule(
+            999,
+            title,
+            body,
+            when,
+            details,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          );
+        } catch (_) {}
+      }
+    } catch (_) {}
   }
 
   /// (Re)schedules notifications for today + tomorrow. If the master
