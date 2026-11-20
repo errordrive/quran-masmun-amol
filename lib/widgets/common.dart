@@ -1,5 +1,5 @@
 // Shared UI (v1.1): subtle Islamic geometric texture, premium buttons,
-// floating pill navigation, top bar, copy/share, empty/loading states.
+// minimal floating navigation, top bar, copy/share, empty/loading states.
 // The bottom NavigationBar lives ONLY in the three main tabs (via
 // MainNavBar); sub-screens are plain AppScaffolds with no bar at all.
 import 'package:flutter/material.dart';
@@ -276,60 +276,46 @@ class SectionTitle extends StatelessWidget {
   }
 }
 
-// ---------------- Floating pill navigation (main tabs ONLY) ----------------
+// ---------------- Minimal floating navigation (main tabs ONLY) ----------------
 
-/// Custom floating pill bar: selected item is a filled green pill with a
-/// white icon + white label; unselected items are grey. Used as the
-/// bottomNavigationBar of each main tab's own Scaffold — never on
-/// sub-screens, which are plain AppScaffolds without this bar.
+/// Minimal floating bottom nav — NO background container, NO pill, NO
+/// border, NO shadow. Just 3 tappable items in a transparent Row,
+/// floating slightly above the system gesture area (SafeArea supplies
+/// the bottom inset). Active item: green rounded rectangle with a white
+/// icon + white label; inactive items: muted grey icon + label, no
+/// background at all. Custom widget — NOT BottomNavigationBar and NOT
+/// Material NavigationBar. Shown only on the 3 main tabs (Home/Prayer/
+/// Me); sub-screens are plain AppScaffolds with no bar at all.
 class MainNavBar extends StatelessWidget {
   const MainNavBar({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final barColor =
-        dark ? const Color(0xFF1E1E1E) : Colors.white;
-    final borderColor =
-        dark ? const Color(0xFF2E2E2E) : const Color(0xFFE5E5E0);
     return ValueListenableBuilder<int>(
       valueListenable: currentTab,
       builder: (context, index, _) {
-        return Padding(
-          // Tight to the bottom edge so the pill reads as floating;
-          // the system gesture area below it is the only gap left.
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Container(
-            height: 68,
-            decoration: BoxDecoration(
-              color: barColor,
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: borderColor),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(dark ? 0.35 : 0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _NavPill(
+                _NavItem(
                   icon: Icons.home_outlined,
                   selectedIcon: Icons.home,
                   label: tr('tab_home'),
                   selected: index == 0,
                   onTap: () => goToTab(0),
                 ),
-                _NavPill(
+                _NavItem(
                   icon: Icons.access_time_outlined,
                   selectedIcon: Icons.access_time,
                   label: tr('tab_prayer'),
                   selected: index == 1,
                   onTap: () => goToTab(1),
                 ),
-                _NavPill(
+                _NavItem(
                   icon: Icons.person_outline,
                   selectedIcon: Icons.person,
                   label: tr('tab_me'),
@@ -345,13 +331,13 @@ class MainNavBar extends StatelessWidget {
   }
 }
 
-class _NavPill extends StatelessWidget {
+class _NavItem extends StatelessWidget {
   final IconData icon;
   final IconData selectedIcon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _NavPill({
+  const _NavItem({
     required this.icon,
     required this.selectedIcon,
     required this.label,
@@ -361,40 +347,32 @@ class _NavPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            decoration: BoxDecoration(
-              color: selected ? primaryGreen : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(selected ? selectedIcon : icon,
-                    size: 24,
-                    color: selected
-                        ? Colors.white
-                        : Theme.of(context).colorScheme.onSurfaceVariant),
-                const SizedBox(height: 2),
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w500,
-                        color: selected
-                            ? Colors.white
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant)),
-              ],
-            ),
-          ),
+    // onSurfaceVariant is a readable muted grey in both light and dark.
+    final inactiveColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? primaryGreen : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(selected ? selectedIcon : icon,
+                size: 24,
+                color: selected ? Colors.white : inactiveColor),
+            const SizedBox(height: 2),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight:
+                        selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? Colors.white : inactiveColor)),
+          ],
         ),
       ),
     );
