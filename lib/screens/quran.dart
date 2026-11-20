@@ -6,6 +6,7 @@ import '../data/juz.dart';
 import '../data/surah_names_bn.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
+import '../services/audio_service.dart';
 import '../services/quran_service.dart';
 import '../services/strings.dart';
 import '../theme.dart';
@@ -118,7 +119,7 @@ class _QuranListScreenState extends State<QuranListScreen>
                               final s = QuranService.instance
                                   .surahByNumber(_surahs, state.lastSurah);
                               if (s != null) {
-                                Navigator.of(context).push(
+                                Navigator.of(context, rootNavigator: true).push(
                                   MaterialPageRoute(
                                       builder: (_) => QuranReaderScreen(
                                           surah: s,
@@ -187,7 +188,7 @@ class _SurahTab extends StatelessWidget {
     }
     return ListView.builder(
       itemCount: surahs.length,
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 32),
       itemBuilder: (context, i) {
         final s = surahs[i];
         final displayName = bn ? bnSurahName(s.number) : s.englishName;
@@ -216,7 +217,7 @@ class _SurahTab extends StatelessWidget {
               '$meaning · ${s.ayahs.length} ${tr('ayahs')} · $revelation'),
           trailing: Text(s.name,
               style: const TextStyle(fontSize: 20, color: primaryGreen)),
-          onTap: () => Navigator.of(context).push(
+          onTap: () => Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute(
                 builder: (_) =>
                     QuranReaderScreen(surah: s, surahs: allSurahs)),
@@ -236,7 +237,7 @@ class _JuzTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       itemCount: juzList.length,
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 32),
       itemBuilder: (context, i) {
         final j = juzList[i];
         return ListTile(
@@ -259,7 +260,7 @@ class _JuzTab extends StatelessWidget {
           onTap: () {
             final s = QuranService.instance.surahByNumber(surahs, j.startSurah);
             if (s != null) {
-              Navigator.of(context).push(
+              Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(
                     builder: (_) => QuranReaderScreen(
                         surah: s,
@@ -315,6 +316,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
   void _goToSurah(int number) {
     final s = QuranService.instance.surahByNumber(widget.surahs, number);
     if (s == null) return;
+    AudioService.instance.stop();
     setState(() => _surah = s);
     AppState.instance.saveLastRead(s.number, 1);
     if (_scroll.hasClients) _scroll.jumpTo(0);
@@ -332,6 +334,7 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
 
   @override
   void dispose() {
+    AudioService.instance.stop();
     _scroll.dispose();
     super.dispose();
   }
@@ -340,9 +343,10 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
   Widget build(BuildContext context) {
     final state = AppState.instance;
     return ListenableBuilder(
-      listenable: state,
+      listenable: Listenable.merge([state, AudioService.instance]),
       builder: (context, _) {
         final bn = state.isBangla;
+        final audio = AudioService.instance;
         final displayName =
             bn ? bnSurahName(_surah.number) : _surah.englishName;
         final meaning = bn
@@ -422,7 +426,10 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
               ),
             ],
           ),
-          body: ListView.builder(
+          body: Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
             controller: _scroll,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             itemCount: _surah.ayahs.length + 2,
@@ -485,6 +492,9 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
               final translation = _translationText(ayah);
               final bookmarked =
                   state.isBookmarked(_surah.number, ayah.numberInSurah);
+              // v2.0: highlight the ayah currently being recited.
+              final isPlayingAyah = audio.playingSurah == _surah.number &&
+                  audio.playingAyah == ayah.numberInSurah;
               return InkWell(
                 onTap: () => _showAyahActions(context, ayah),
                 borderRadius: BorderRadius.circular(12),
@@ -492,6 +502,10 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                   padding:
                       const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                   decoration: BoxDecoration(
+                    color: isPlayingAyah
+                        ? primaryGreen.withOpacity(0.10)
+                        : null,
+                    borderRadius: BorderRadius.circular(12),
                     border: Border(
                       bottom: BorderSide(
                           color: Theme.of(context)
@@ -559,6 +573,10 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                 ),
               );
             },
+            ),
+              ),
+              _AudioBar(surah: _surah),
+            ],
           ),
         );
       },
@@ -622,6 +640,21 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
                     },
                   ),
                 ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: TonalButton(
+                    label: bn
+                        ? 'এই আয়াত থেকে তিলাওয়াত শুনুন'
+                        : 'Listen from this ayah',
+                    icon: Icons.play_arrow,
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      AudioService.instance.playSurah(_surah,
+                          startAyah: ayah.numberInSurah);
+                    },
+                  ),
+                ),
               ],
             ),
           ),
@@ -629,5 +662,174 @@ class _QuranReaderScreenState extends State<QuranReaderScreen> {
       },
     );
     state.saveLastRead(_surah.number, ayah.numberInSurah);
+  }
+}
+
+// ---------------- Audio player bar (v2.0) ----------------
+
+/// Pinned to the bottom of the reader: play/pause + stop for the current
+/// surah (streams per-ayah MP3s from the Islamic Network CDN, reciter
+/// Mishary Alafasy), the ayah currently playing, and a per-surah
+/// download button (offline playback from local files).
+class _AudioBar extends StatelessWidget {
+  final Surah surah;
+  const _AudioBar({required this.surah});
+
+  @override
+  Widget build(BuildContext context) {
+    final audio = AudioService.instance;
+    final bn = AppState.instance.isBangla;
+    return ListenableBuilder(
+      listenable: audio,
+      builder: (context, _) {
+        final isThisSurah = audio.playingSurah == surah.number;
+        final downloaded = audio.isDownloaded(surah.number);
+        final downloading = audio.downloadingSurah == surah.number;
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            border: Border(
+              top: BorderSide(color: Theme.of(context).dividerColor),
+            ),
+          ),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (audio.error != null && isThisSurah) ...[
+                Text(audio.error!,
+                    style: const TextStyle(color: Colors.red, fontSize: 13)),
+                const SizedBox(height: 4),
+              ],
+              Row(
+                children: [
+                  TonalIconButton(
+                    icon: audio.isLoading && isThisSurah
+                        ? Icons.hourglass_top
+                        : (isThisSurah && audio.isPlaying
+                            ? Icons.pause
+                            : Icons.play_arrow),
+                    tooltip: bn ? 'তিলাওয়াত' : 'Recitation',
+                    onPressed: () {
+                      if (isThisSurah && audio.isPlaying) {
+                        audio.pause();
+                      } else if (isThisSurah) {
+                        audio.resume();
+                      } else {
+                        audio.playSurah(surah);
+                      }
+                    },
+                  ),
+                  if (isThisSurah) ...[
+                    const SizedBox(width: 4),
+                    TonalIconButton(
+                      icon: Icons.stop,
+                      tooltip: bn ? 'থামান' : 'Stop',
+                      onPressed: () => audio.stop(),
+                    ),
+                  ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isThisSurah
+                              ? '${bn ? 'আয়াত' : 'Ayah'} ${audio.playingAyah ?? 1} / ${surah.ayahs.length}'
+                              : (bn ? 'তিলাওয়াত শুনুন' : 'Listen to recitation'),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          downloaded
+                              ? (bn
+                                  ? 'মিশারি আল-আফাসি · অফলাইন'
+                                  : 'Mishary Alafasy · offline')
+                              : (bn
+                                  ? 'মিশারি আল-আফাসি · স্ট্রিমিং'
+                                  : 'Mishary Alafasy · streaming'),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (downloading)
+                    SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            value: audio.downloadProgress,
+                            color: primaryGreen,
+                          ),
+                          Text(
+                              '${(audio.downloadProgress * 100).round()}',
+                              style: const TextStyle(fontSize: 10)),
+                        ],
+                      ),
+                    )
+                  else if (downloaded)
+                    TonalIconButton(
+                      icon: Icons.download_done,
+                      tooltip: bn ? 'ডাউনলোড মুছুন' : 'Delete download',
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (d) => AlertDialog(
+                            title: Text(bn
+                                ? 'ডাউনলোড মুছবেন?'
+                                : 'Delete download?'),
+                            content: Text(bn
+                                ? 'এই সূরার ডাউনলোড করা অডিও মুছে যাবে। পরে আবার ডাউনলোড করা যাবে।'
+                                : 'The downloaded audio for this surah will be deleted. You can download it again later.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(d).pop(false),
+                                child: Text(tr('cancel')),
+                              ),
+                              FilledButton(
+                                onPressed: () =>
+                                    Navigator.of(d).pop(true),
+                                child: Text(tr('delete')),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          audio.deleteSurah(surah.number);
+                        }
+                      },
+                    )
+                  else
+                    TonalIconButton(
+                      icon: Icons.download,
+                      tooltip: bn ? 'অফলাইনে শুনতে ডাউনলোড' : 'Download for offline',
+                      onPressed: () async {
+                        final ok = await audio.downloadSurah(surah);
+                        if (!ok && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(audio.error ??
+                                    (bn
+                                        ? 'ডাউনলোড হয়নি'
+                                        : 'Download failed'))),
+                          );
+                        }
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
