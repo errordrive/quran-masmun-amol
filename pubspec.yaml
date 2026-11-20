@@ -1,7 +1,7 @@
 name: quran_masmun_amol
 description: "Quran & Masnun Amol — prayer times, full Quran, Hadith, duas and tasbih, fully offline."
 publish_to: "none"
-version: 1.1.0+2
+version: 2.0.0+4
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -10,6 +10,16 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: ^2.3.2
+  # v2.0 — azan notifications (local, scheduled on-device)
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.1
+  # v2.0 — audio tilawat (streaming only, nothing bundled in the APK)
+  just_audio: ^0.9.46
+  path_provider: ^2.1.5
+  # v2.0 — qibla compass (device heading sensor)
+  flutter_compass: ^0.8.0
+  # v2.0 — Android home-screen widget (next prayer)
+  home_widget: ^0.9.0
 
 dev_dependencies:
   flutter_test:
