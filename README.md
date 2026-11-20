@@ -67,6 +67,42 @@ tasbih, a namaz tracker, and Sehri & Iftar times — **all working offline**.
   live in one table (`lib/data/islamic_events.dart`) so they are easy
   to correct later.
 
+## What's new in v3.1
+
+- **3D tasbih (reference video)** — the counter screen's ring is
+  replaced by a realistic bead string drawn with a CustomPainter
+  (`lib/widgets/bead_string.dart`): a curved thread with glossy
+  spherical beads (radial-gradient highlight top-left, dark edge, soft
+  drop shadow, specular dot). On every tap the string slides one bead
+  along the thread with a 350ms easeOutCubic animation (single
+  AnimationController + painter repaint only — no jank), the counter
+  pops a floating "+1", and the active bead gets a green glow + ring.
+  Bead colours: black / green / amber / white via the palette button
+  (persisted in AppState). Dhikr card on top shows Arabic +
+  transliteration + meaning separated by dashed lines; swipe or use
+  the arrows to move between dhikrs with a "N/M" position indicator.
+  Counter shows "X/target" + "Rounds: N" (rolls to round 2 after the
+  target, like the video). Existing counts, presets, targets, streak
+  and history storage are untouched — no data reset.
+- **City Select screen (reference video)** — replaces the old bottom
+  sheet picker: search bar, "Current Location" row, "Popular Cities"
+  chips (8 Bangladeshi cities), full city list grouped alphabetically
+  with letter headers, and a right-side A–Z fast-scroll rail (tap or
+  drag a letter to jump; current letter highlighted green; big letter
+  bubble while dragging). Selecting a city applies it everywhere
+  (prayer times, widget, azan), exactly like before.
+- **Prayer list upgrades (reference video)** — each prayer row on the
+  Prayer tab now has a speaker toggle for that prayer's azan (wired to
+  the SAME per-prayer toggles as Settings) and a checkbox to mark the
+  prayer as prayed today (wired to the SAME namaz-tracker state/keys
+  as the tracker card). Sunrise has neither. The Home prayer strip
+  shows a green check under prayers marked today. The live countdown
+  and Hijri date bar are unchanged.
+- **Home quick-access row (reference video)** — compact horizontal
+  icon row under the prayer strip: Azkar, Tasbih, Calendar, Duas,
+  Names, Tracker, Fasting — all map to existing screens (no new
+  screens; Shahada from the video is skipped — no screen exists).
+
 ## What's new in v3.0
 
 - **Full UI redesign (reference look)** — deep green headers/cards,
