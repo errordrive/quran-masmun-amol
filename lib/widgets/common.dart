@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../data/cities.dart';
 import '../services/app_state.dart';
+import '../services/azan_service.dart';
 import '../services/navigation.dart';
 import '../services/strings.dart';
+import '../services/widget_service.dart';
 import '../theme.dart';
 
 // ---------------- Subtle geometric texture ----------------
@@ -294,7 +296,9 @@ class MainNavBar extends StatelessWidget {
       valueListenable: currentTab,
       builder: (context, index, _) {
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          // Tight to the bottom edge so the pill reads as floating;
+          // the system gesture area below it is the only gap left.
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Container(
             height: 68,
             decoration: BoxDecoration(
@@ -641,6 +645,9 @@ Future<void> showLocationPicker(BuildContext context) async {
                                     : null,
                                 onTap: () {
                                   state.setCity(c.name);
+                                  // City drives prayer times, azan and widget.
+                                  AzanService.scheduleAll();
+                                  HomeWidgetService.update();
                                   Navigator.of(sheetContext).pop();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
