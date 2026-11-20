@@ -182,6 +182,11 @@ class _PrayerScreenState extends State<PrayerScreen> {
                       time: formatTime(time, use24h: state.use24h),
                       highlighted: _isToday && name == current,
                       isSunrise: name == 'Sunrise',
+                      prayerIndex: prayerIndexFor(name),
+                      day: _day,
+                      marked: prayerIndexFor(name) >= 0 &&
+                          state.isPrayerMarked(
+                              _day, prayerIndexFor(name)),
                     ),
                 ],
               ),
@@ -539,22 +544,31 @@ class _PrayerRow extends StatelessWidget {
   final String time;
   final bool highlighted;
   final bool isSunrise;
+  // Index in the 5-prayer list (Fajr 0 .. Isha 4); -1 for Sunrise.
+  final int prayerIndex;
+  final DateTime day;
+  final bool marked;
   const _PrayerRow({
     required this.name,
     required this.displayName,
     required this.time,
     required this.highlighted,
     required this.isSunrise,
+    required this.prayerIndex,
+    required this.day,
+    required this.marked,
   });
 
   @override
   Widget build(BuildContext context) {
+    final state = AppState.instance;
     final bg = highlighted
         ? primaryGreen.withOpacity(0.12)
         : Colors.transparent;
+    final azanOn = prayerIndex >= 0 && state.azanPrayers[prayerIndex];
     return Container(
       color: bg,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           Container(
@@ -581,6 +595,21 @@ class _PrayerRow extends StatelessWidget {
                   fontWeight:
                       highlighted ? FontWeight.w800 : FontWeight.w500,
                   color: isSunrise && !highlighted ? Colors.grey : null)),
+          // Per-prayer azan speaker toggle (v3.1): the SAME AppState
+          // toggles as Settings — no second copy of the state.
+          if (prayerIndex >= 0)
+            IconButton(
+              icon: Icon(
+                azanOn ? Icons.volume_up : Icons.volume_off,
+                size: 20,
+                color: azanOn ? primaryGreen : Colors.grey,
+              ),
+              tooltip: azanOn ? tr('azan_on') : tr('azan_off'),
+              onPressed: () {
+                state.setAzanPrayer(prayerIndex, !azanOn);
+                AzanService.scheduleAll();
+              },
+            ),
           const Spacer(),
           Text(time,
               style: TextStyle(
@@ -599,6 +628,33 @@ class _PrayerRow extends StatelessWidget {
               ),
               child: Text(tr('now_badge'),
                   style: const TextStyle(color: Colors.white, fontSize: 12)),
+            ),
+          ],
+          // Prayed checkbox (v3.1): the SAME namaz-tracker state and
+          // storage keys as the tracker card below, so Home, Prayer
+          // and the tracker always agree. No checkbox for Sunrise.
+          if (prayerIndex >= 0) ...[
+            const SizedBox(width: 12),
+            InkWell(
+              onTap: () => state.togglePrayerMark(day, prayerIndex),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: marked ? primaryGreen : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: marked
+                        ? primaryGreen
+                        : Theme.of(context).dividerColor,
+                    width: 2,
+                  ),
+                ),
+                child: marked
+                    ? const Icon(Icons.check, color: Colors.white, size: 18)
+                    : null,
+              ),
             ),
           ],
         ],
