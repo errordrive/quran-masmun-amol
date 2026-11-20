@@ -20,6 +20,7 @@ import 'content.dart';
 import 'events.dart';
 import 'khatam.dart';
 import 'knowledge.dart';
+import 'month_calendar.dart';
 import 'quran.dart';
 import 'stories.dart';
 import 'zakat.dart';
@@ -152,6 +153,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 16),
                 _JumuahCard(onTap: () => goToTab(1)),
               ],
+              const SizedBox(height: 16),
+              // Quick-access row (v3.1, reference video): Azkar, Tasbih,
+              // Calendar, Duas, Names, Tracker, Fasting — all map to
+              // EXISTING screens, no new screens invented.
+              const _QuickAccessRow(),
               const SizedBox(height: 28),
               SectionTitle(title: tr('categories')),
               const SizedBox(height: 12),
@@ -352,6 +358,117 @@ class _JumuahCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------- Quick-access row (v3.1, reference video) ----------------
+
+/// Compact horizontal icon row under the prayer strip. Every item maps
+/// to an EXISTING screen: Azkar = morning duas, Tasbih = tasbih list,
+/// Calendar = monthly calendar, Duas = all duas, Names = Asmaul Husna,
+/// Tracker = Khatam tracker, Fasting = Prayer tab (Sehri & Iftar card).
+class _QuickAccessRow extends StatelessWidget {
+  const _QuickAccessRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <({IconData icon, String label, VoidCallback onTap})>[
+      (
+        icon: Icons.wb_sunny,
+        label: tr('azkar'),
+        onTap: () => Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute(
+              builder: (_) => CategoryListScreen(
+                  title: tr('cat_morning'),
+                  duas: duasByCategory('morning'),
+                  subtitle: tr('morning_sub'))),
+        ),
+      ),
+      (
+        icon: Icons.fingerprint,
+        label: tr('tasbih'),
+        onTap: () => Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute(builder: (_) => const TasbihListScreen()),
+        ),
+      ),
+      (
+        icon: Icons.calendar_month,
+        label: tr('quick_calendar'),
+        onTap: () => Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute(
+              builder: (_) => const MonthlyCalendarScreen()),
+        ),
+      ),
+      (
+        icon: Icons.volunteer_activism,
+        label: tr('quick_duas'),
+        onTap: () => Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute(
+              builder: (_) => CategoryListScreen(
+                  title: tr('cat_daily_dua'),
+                  duas: duas,
+                  subtitle: tr('all_duas'))),
+        ),
+      ),
+      (
+        icon: Icons.auto_awesome,
+        label: tr('quick_names'),
+        onTap: () => Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute(builder: (_) => const AsmaulHusnaScreen()),
+        ),
+      ),
+      (
+        icon: Icons.checklist,
+        label: tr('quick_tracker'),
+        onTap: () => Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute(builder: (_) => const KhatamScreen()),
+        ),
+      ),
+      (
+        icon: Icons.nightlight_round,
+        label: tr('quick_fasting'),
+        onTap: () => goToTab(1),
+      ),
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final item in items)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: InkWell(
+                onTap: item.onTap,
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  width: 68,
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: primaryGreen.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(item.icon,
+                            color: primaryGreen, size: 26),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(item.label,
+                          style: const TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.w700),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
