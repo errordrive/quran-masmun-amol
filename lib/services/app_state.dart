@@ -33,6 +33,8 @@ class AppState extends ChangeNotifier {
   PrayerMethod prayerMethod = PrayerMethod.karachi;
   bool asrHanafi = false;
   bool vibrationOn = true;
+  // 3D tasbih bead color (v3.1): 'black' | 'green' | 'amber' | 'white'.
+  String beadColor = 'black';
   String cityName = 'Dhaka';
 
   // ---- Azan notifications (v2.0) ----
@@ -82,6 +84,7 @@ class AppState extends ChangeNotifier {
     prayerMethod = PrayerMethod.values[_prefs.getInt('prayerMethod') ?? 0];
     asrHanafi = _prefs.getBool('asrHanafi') ?? false;
     vibrationOn = _prefs.getBool('vibrationOn') ?? true;
+    beadColor = _prefs.getString('beadColor') ?? 'black';
     cityName = _prefs.getString('city') ?? 'Dhaka';
     azanEnabled = _prefs.getBool('azanEnabled') ?? true;
     azanPermAsked = _prefs.getBool('azanPermAsked') ?? false;
@@ -161,6 +164,7 @@ class AppState extends ChangeNotifier {
     await _prefs.setInt('prayerMethod', prayerMethod.index);
     await _prefs.setBool('asrHanafi', asrHanafi);
     await _prefs.setBool('vibrationOn', vibrationOn);
+    await _prefs.setString('beadColor', beadColor);
     await _prefs.setString('city', cityName);
     await _prefs.setBool('azanEnabled', azanEnabled);
     await _prefs.setBool('azanPermAsked', azanPermAsked);
@@ -253,6 +257,12 @@ class AppState extends ChangeNotifier {
 
   void setVibration(bool v) {
     vibrationOn = v;
+    _save();
+    notifyListeners();
+  }
+
+  void setBeadColor(String color) {
+    beadColor = color;
     _save();
     notifyListeners();
   }
