@@ -14,6 +14,7 @@ import '../services/app_state.dart';
 import '../services/quran_service.dart';
 import '../services/strings.dart';
 import '../theme.dart';
+import '../widgets/bead_string.dart';
 import '../widgets/common.dart';
 import 'quran.dart';
 
@@ -552,8 +553,8 @@ class TasbihListScreen extends StatelessWidget {
                             onPressed: () => Navigator.of(context,
                                     rootNavigator: true)
                                 .push(MaterialPageRoute(
-                                    builder: (_) =>
-                                        TasbihCounterScreen(item: t))),
+                                    builder: (_) => TasbihCounterScreen(
+                                        item: t, items: items))),
                           ),
                         ),
                     ],
@@ -604,7 +605,8 @@ class TasbihListScreen extends StatelessWidget {
                       ),
                       onTap: () => Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(
-                            builder: (_) => TasbihCounterScreen(item: t)),
+                            builder: (_) =>
+                                TasbihCounterScreen(item: t, items: items)),
                       ),
                     );
                   },
@@ -618,10 +620,17 @@ class TasbihListScreen extends StatelessWidget {
   }
 
   Future<void> _showAddCustom(BuildContext context) async {
-    final state = AppState.instance;
-    final arabicCtrl = TextEditingController();
-    final englishCtrl = TextEditingController();
-    final targetCtrl = TextEditingController(text: '100');
+    await showAddCustomTasbih(context);
+  }
+}
+
+/// Add-custom-tasbih dialog, shared by the tasbih list (AppBar + button)
+/// and the 3D counter (edit button). Top-level so both screens use it.
+Future<void> showAddCustomTasbih(BuildContext context) async {
+  final state = AppState.instance;
+  final arabicCtrl = TextEditingController();
+  final englishCtrl = TextEditingController();
+  final targetCtrl = TextEditingController(text: '100');
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -677,35 +686,76 @@ class TasbihListScreen extends StatelessWidget {
       },
     );
   }
-}
 
 class TasbihCounterScreen extends StatefulWidget {
   final TasbihItem item;
-  const TasbihCounterScreen({super.key, required this.item});
+  // Full dhikr list for swipe/arrow navigation with the "N/M"
+  // position indicator (v3.1). Null = single item, no navigation.
+  final List<TasbihItem>? items;
+  const TasbihCounterScreen({super.key, required this.item, this.items});
   @override
   State<TasbihCounterScreen> createState() => _TasbihCounterScreenState();
 }
 
-class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
+class _TasbihCounterScreenState extends State<TasbihCounterScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _slideCtrl;
+  late final Animation<double> _slideAnim;
+  late int _index;
   bool _pressed = false;
-  // Session target override (33/99/100/500/1000 selector). Null = the
-  // dhikr's own stored target. The stored TasbihItem is never mutated.
   int? _targetOverride;
-  // Animated progress value for the smooth bead ring.
-  double _animatedProgress = 0;
   // Count value the celebration dialog was last shown for (so it fires
   // once per target reach, not on every rebuild).
   int? _celebratedFor;
+  // Floating "+1" labels: one controller per tap, removed on completion.
+  final List<_Floater> _floaters = [];
+  int _floaterSeq = 0;
 
-  int get _target => _targetOverride ?? widget.item.target;
+  List<TasbihItem> get _items => widget.items ?? [widget.item];
+  TasbihItem get _item => _items[_index.clamp(0, _items.length - 1)];
+  int get _target => _targetOverride ?? _item.target;
 
   static const List<int> _targetOptions = [33, 99, 100, 500, 1000];
+
+  @override
+  void initState() {
+    super.initState();
+    _index = _items.indexWhere((t) => t.id == widget.item.id);
+    if (_index < 0) _index = 0;
+    _slideCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+      value: 1,
+    );
+    _slideAnim =
+        CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic);
+  }
+
+  @override
+  void dispose() {
+    _slideCtrl.dispose();
+    for (final f in _floaters) {
+      f.controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _switchDhikr(int delta) {
+    if (_items.length < 2) return;
+    setState(() {
+      _index = (_index + delta) % _items.length;
+      if (_index < 0) _index += _items.length;
+      _targetOverride = null;
+      _celebratedFor = null;
+      _slideCtrl.value = 1;
+    });
+  }
 
   void _onTap(int count) {
     final state = AppState.instance;
     final next = count + 1;
     final reached = next == _target;
-    state.setTasbihCount(widget.item.id, next);
+    state.setTasbihCount(_item.id, next);
     state.recordTasbihTap();
     if (state.vibrationOn) {
       if (reached) {
@@ -716,6 +766,9 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
         HapticFeedback.lightImpact();
       }
     }
+    // Slide the bead string one bead along the thread.
+    _slideCtrl.forward(from: 0);
+    _spawnFloater();
     if (reached && _celebratedFor != next) {
       _celebratedFor = next;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -725,18 +778,139 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
     }
   }
 
+  void _spawnFloater() {
+    final ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 750),
+    );
+    final floater = _Floater(key: _floaterSeq++, controller: ctrl);
+    setState(() => _floaters.add(floater));
+    ctrl.forward().whenComplete(() {
+      if (!mounted) return;
+      setState(() => _floaters.remove(floater));
+      ctrl.dispose();
+    });
+  }
+
   Future<void> _showCelebration(int count) async {
     final again = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
       builder: (d) => _CelebrationDialog(
-        dhikrName: widget.item.englishName,
-        arabicName: widget.item.arabicName,
+        dhikrName: _item.englishName,
+        arabicName: _item.arabicName,
         count: count,
       ),
     );
     if (again == true && mounted) {
-      AppState.instance.resetTasbih(widget.item.id);
+      AppState.instance.resetTasbih(_item.id);
+      setState(() => _celebratedFor = null);
+    }
+  }
+
+  Future<void> _showBeadColors() async {
+    final state = AppState.instance;
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr('bead_color'),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    for (final opt in beadColorOptions)
+                      InkWell(
+                        onTap: () {
+                          state.setBeadColor(opt.key);
+                          Navigator.of(sheetContext).pop();
+                        },
+                        borderRadius: BorderRadius.circular(32),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  center: const Alignment(-0.35, -0.4),
+                                  radius: 1.1,
+                                  colors: [
+                                    Colors.white.withOpacity(0.9),
+                                    opt.swatch,
+                                    opt.swatch.withOpacity(0.55),
+                                  ],
+                                  stops: const [0.0, 0.35, 1.0],
+                                ),
+                                border: Border.all(
+                                  color: state.beadColor == opt.key
+                                      ? primaryGreen
+                                      : Theme.of(context).dividerColor,
+                                  width:
+                                      state.beadColor == opt.key ? 3 : 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.25),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: state.beadColor == opt.key
+                                  ? const Icon(Icons.check,
+                                      color: Colors.white)
+                                  : null,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(opt.label,
+                                style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmReset() async {
+    final state = AppState.instance;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(tr('reset_counter_q')),
+        content: Text(tr('reset_counter_sub')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(d).pop(false),
+            child: Text(tr('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(d).pop(true),
+            child: Text(tr('reset')),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      state.resetTasbih(_item.id);
       setState(() => _celebratedFor = null);
     }
   }
@@ -747,27 +921,111 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
-        final count = state.tasbihCount(widget.item.id);
+        final count = state.tasbihCount(_item.id);
         final done = count >= _target;
-        final progress =
-            (count / _target).clamp(0.0, 1.0).toDouble();
+        // Display count inside the current round + round number,
+        // like the reference video: 33/33 Rounds: 1 -> 1/33 Rounds: 2.
+        final inRound =
+            count == 0 ? 0 : (count % _target == 0 ? _target : count % _target);
+        final rounds = count == 0 ? 0 : (count - 1) ~/ _target + 1;
         final todayTotal = state.tasbihTodayTotal();
         final streak = state.tasbihStreak();
         final bn = state.isBangla;
+        final meaning = bn ? _item.meaningBn : _item.meaningEn;
+        final transliteration = _item.transliteration.isNotEmpty
+            ? _item.transliteration
+            : _item.englishName;
         return AppScaffold(
-          appBar: AppBar(title: Text(widget.item.englishName)),
+          appBar: AppBar(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr('tasbih')),
+                if (_items.length > 1)
+                  Text(
+                    '${_index + 1}/${_items.length}',
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w400),
+                  ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: tr('reset'),
+                onPressed: _confirmReset,
+              ),
+              IconButton(
+                icon: Icon(state.vibrationOn
+                    ? Icons.vibration
+                    : Icons.volume_off),
+                tooltip: state.vibrationOn
+                    ? tr('vibration_on')
+                    : tr('vibration_off'),
+                onPressed: () => state.setVibration(!state.vibrationOn),
+              ),
+            ],
+          ),
           body: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             child: Column(
               children: [
-                Text(widget.item.arabicName,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontSize: 30, color: primaryGreen, height: 1.8)),
-                const SizedBox(height: 8),
-                Text('${widget.item.englishName} · ${tr('target')} $_target',
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                // Dhikr card: Arabic / transliteration / meaning,
+                // separated by dashed lines (reference video layout).
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 16),
+                    child: Row(
+                      children: [
+                        if (_items.length > 1)
+                          IconButton(
+                            icon: const Icon(Icons.chevron_left),
+                            onPressed: () => _switchDhikr(-1),
+                          )
+                        else
+                          const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(_item.arabicName,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      fontSize: 28,
+                                      color: primaryGreen,
+                                      height: 1.8)),
+                              const SizedBox(height: 8),
+                              DashedLine(
+                                  color: Theme.of(context).dividerColor),
+                              const SizedBox(height: 10),
+                              Text(transliteration,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontStyle: FontStyle.italic)),
+                              if (meaning.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                DashedLine(
+                                    color: Theme.of(context).dividerColor),
+                                const SizedBox(height: 10),
+                                Text(meaning,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 15)),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (_items.length > 1)
+                          IconButton(
+                            icon: const Icon(Icons.chevron_right),
+                            onPressed: () => _switchDhikr(1),
+                          )
+                        else
+                          const SizedBox(width: 8),
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 12),
                 // Today's total + streak.
                 Row(
@@ -842,132 +1100,137 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                // 3D bead string: tap anywhere to count, swipe left/right
+                // to switch dhikr.
                 Expanded(
-                  child: Center(
-                    child: GestureDetector(
-                      onTapDown: (_) => setState(() => _pressed = true),
-                      onTapUp: (_) => setState(() => _pressed = false),
-                      onTapCancel: () => setState(() => _pressed = false),
-                      onTap: () => _onTap(count),
-                      child: AnimatedScale(
-                        scale: _pressed ? 0.94 : 1.0,
-                        duration: const Duration(milliseconds: 120),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Smooth bead ring: 33 beads fill as progress
-                            // grows; the value animates instead of jumping.
-                            TweenAnimationBuilder<double>(
-                              tween: Tween<double>(
-                                  begin: _animatedProgress, end: progress),
-                              duration: const Duration(milliseconds: 350),
-                              curve: Curves.easeOut,
-                              onEnd: () => _animatedProgress = progress,
-                              builder: (context, value, _) => SizedBox(
-                                width: 284,
-                                height: 284,
-                                child: CustomPaint(
-                                  painter: _BeadRingPainter(
-                                      progress: value, beadCount: 33),
+                  child: GestureDetector(
+                    onTapDown: (_) => setState(() => _pressed = true),
+                    onTapUp: (_) => setState(() => _pressed = false),
+                    onTapCancel: () => setState(() => _pressed = false),
+                    onTap: () => _onTap(count),
+                    onHorizontalDragEnd: (details) {
+                      if (details.primaryVelocity == null) return;
+                      if (details.primaryVelocity! < -200) {
+                        _switchDhikr(1);
+                      } else if (details.primaryVelocity! > 200) {
+                        _switchDhikr(-1);
+                      }
+                    },
+                    child: AnimatedScale(
+                      scale: _pressed ? 0.97 : 1.0,
+                      duration: const Duration(milliseconds: 120),
+                      child: Stack(
+                        children: [
+                          Align(
+                            alignment: Alignment.center,
+                            child: SizedBox(
+                              width: double.infinity,
+                              height: 190,
+                              child: AnimatedBuilder(
+                                animation: _slideAnim,
+                                builder: (context, _) => CustomPaint(
+                                  painter: BeadStringPainter(
+                                    slide: _slideAnim.value,
+                                    count: count,
+                                    target: _target,
+                                    beadColorKey: state.beadColor,
+                                  ),
                                 ),
                               ),
                             ),
-                            Container(
-                              width: 260,
-                              height: 260,
-                              decoration: BoxDecoration(
-                                color: done
-                                    ? primaryGreen
-                                    : primaryGreen.withOpacity(0.15),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: primaryGreen, width: 2),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color:
-                                        primaryGreen.withOpacity(0.25),
-                                    blurRadius: 28,
-                                    offset: const Offset(0, 10),
+                          ),
+                          // Counter, top-left of the bead area.
+                          Positioned(
+                            left: 4,
+                            top: 4,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                RichText(
+                                  text: TextSpan(
+                                    style: DefaultTextStyle.of(context).style,
+                                    children: [
+                                      TextSpan(
+                                        text: '$inRound',
+                                        style: const TextStyle(
+                                            fontSize: 52,
+                                            fontWeight: FontWeight.w800,
+                                            color: primaryGreen),
+                                      ),
+                                      TextSpan(
+                                        text: '/$_target',
+                                        style: const TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.grey),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                                ),
+                                Text(
+                                  '${tr('rounds')}: $rounds',
+                                  style: const TextStyle(
+                                      fontSize: 16, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Floating "+1" labels.
+                          Align(
+                            alignment: const Alignment(-0.15, 0.15),
+                            child: SizedBox(
+                              width: 120,
+                              height: 90,
+                              child: Stack(
                                 children: [
-                                  Text('$count',
-                                      style: TextStyle(
-                                          fontSize: 64,
-                                          fontWeight: FontWeight.w800,
-                                          color: done
-                                              ? Colors.white
-                                              : primaryGreen)),
-                                  Text('/ $_target',
-                                      style: TextStyle(
-                                          fontSize: 18,
-                                          color: done
-                                              ? Colors.white70
-                                              : Colors.grey)),
-                                  const SizedBox(height: 8),
-                                  Text(done ? tr('completed') : tr('tap_to_count'),
-                                      style: TextStyle(
-                                          color: done
-                                              ? Colors.white
-                                              : primaryGreen)),
+                                  for (final f in _floaters)
+                                    AnimatedBuilder(
+                                      animation: f.controller,
+                                      builder: (context, _) {
+                                        final v = f.controller.value;
+                                        final jitter =
+                                            ((f.key % 5) - 2) * 9.0;
+                                        return Positioned(
+                                          left: 48 + jitter,
+                                          bottom: 10 + v * 52,
+                                          child: Opacity(
+                                            opacity: (1 - v).clamp(0.0, 1.0),
+                                            child: Text(
+                                              '+1',
+                                              style: TextStyle(
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.w800,
+                                                color: primaryGreen
+                                                    .withOpacity(0.85),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                 ],
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
+                // Bottom-left palette + bottom-right edit (video layout).
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: TonalButton(
-                        label: tr('reset'),
-                        icon: Icons.refresh,
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (d) => AlertDialog(
-                              title: Text(tr('reset_counter_q')),
-                              content: Text(tr('reset_counter_sub')),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.of(d).pop(false),
-                                  child: Text(tr('cancel')),
-                                ),
-                                FilledButton(
-                                  onPressed: () =>
-                                      Navigator.of(d).pop(true),
-                                  child: Text(tr('reset')),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            state.resetTasbih(widget.item.id);
-                            setState(() => _celebratedFor = null);
-                          }
-                        },
-                      ),
+                    TonalIconButton(
+                      icon: Icons.palette,
+                      tooltip: tr('bead_color'),
+                      onPressed: _showBeadColors,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TonalButton(
-                        label: state.vibrationOn
-                            ? tr('vibration_on')
-                            : tr('vibration_off'),
-                        icon: state.vibrationOn
-                            ? Icons.vibration
-                            : Icons.volume_off,
-                        onPressed: () =>
-                            state.setVibration(!state.vibrationOn),
-                      ),
+                    TonalIconButton(
+                      icon: Icons.edit,
+                      tooltip: tr('add_custom_tasbih'),
+                      onPressed: () => showAddCustomTasbih(context),
                     ),
                   ],
                 ),
@@ -978,6 +1241,14 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen> {
       },
     );
   }
+}
+
+/// One floating "+1" label: [key] seeds its horizontal jitter,
+/// [controller] drives its rise + fade (0 -> 1 over ~750ms).
+class _Floater {
+  final int key;
+  final AnimationController controller;
+  const _Floater({required this.key, required this.controller});
 }
 
 /// Small today-total / streak pill used above the tasbih counter.
@@ -1012,56 +1283,6 @@ class _MiniStat extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Bead ring: [beadCount] beads arranged in a circle; beads up to
-/// [progress] are filled green, the rest are faint. Drawn with widgets
-/// only — no new packages.
-class _BeadRingPainter extends CustomPainter {
-  final double progress;
-  final int beadCount;
-  const _BeadRingPainter({required this.progress, required this.beadCount});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 8;
-    // Faint track circle.
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = primaryGreen.withOpacity(0.12)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-    final filled = (progress * beadCount).round();
-    for (var i = 0; i < beadCount; i++) {
-      final angle = -math.pi / 2 + (2 * math.pi * i / beadCount);
-      final pos = center +
-          Offset(math.cos(angle) * radius, math.sin(angle) * radius);
-      final isFilled = i < filled;
-      canvas.drawCircle(
-        pos,
-        isFilled ? 6 : 4.5,
-        Paint()
-          ..color = isFilled
-              ? primaryGreen
-              : primaryGreen.withOpacity(0.18),
-      );
-      if (isFilled) {
-        canvas.drawCircle(
-          pos + const Offset(-1.5, -1.5),
-          2,
-          Paint()..color = Colors.white.withOpacity(0.7),
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_BeadRingPainter old) =>
-      old.progress != progress || old.beadCount != beadCount;
 }
 
 /// Completion celebration dialog: gold + green, with a widget-only
