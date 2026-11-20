@@ -274,7 +274,18 @@ const Map<String, Map<String, String>> _strings = {
     'azan_master': 'নামাজের সময় নোটিফিকেশন',
     'azan_master_sub': 'পাঁচ ওয়াক্ত নামাজের সময় নোটিফিকেশন পাবেন',
     'azan_note':
-        'ফোন রিস্টার্ট হলে অ্যাপ একবার খুললে নোটিফিকেশন আবার চালু হবে।',
+        'ফোন রিস্টার্ট হলেও আজান নিজে থেকেই আবার চালু হবে — অ্যাপ খুলতে হবে না।',
+    // Auto azan: exact-alarm status + test azan (v3.2)
+    'exact_alarm_title': 'সঠিক সময়ের আজান',
+    'exact_alarm_on': 'সঠিক সময়ের অনুমতি চালু আছে — আজান ঠিক সময়ে বাজবে',
+    'exact_alarm_off':
+        'সঠিক সময়ের অনুমতি বন্ধ আছে — আজান কয়েক মিনিট দেরিতে বাজতে পারে',
+    'exact_alarm_allow': 'অনুমতি দিন',
+    'azan_test': 'আজান পরীক্ষা করুন',
+    'azan_test_sub': '৫ সেকেন্ড পরে একটি পরীক্ষামূলক আজান নোটিফিকেশন আসবে',
+    'azan_test_sent': 'পরীক্ষামূলক আজান আসছে — শব্দ শুনুন',
+    'azan_test_need_perm':
+        'প্রথমে নোটিফিকেশনের অনুমতি দিন, তারপর আবার চেষ্টা করুন',
     'location_sub': 'বেছে নেওয়া শহরের জন্য নামাজের সময় আপনার ডিভাইসেই হিসাব করা হয়।',
     'search_city': 'শহর খুঁজুন',
     'no_city_found': 'কোনো শহর পাওয়া যায়নি',
@@ -535,7 +546,17 @@ const Map<String, Map<String, String>> _strings = {
     'azan_master_sub':
         'Get a notification at each of the five prayer times',
     'azan_note':
-        'After a phone restart, open the app once to restart notifications.',
+        'After a phone restart, azan restarts by itself — no need to open the app.',
+    'exact_alarm_title': 'On-time azan',
+    'exact_alarm_on':
+        'Exact-alarm permission is on — azan will play on time',
+    'exact_alarm_off':
+        'Exact-alarm permission is off — azan may play a few minutes late',
+    'exact_alarm_allow': 'Allow',
+    'azan_test': 'Test azan',
+    'azan_test_sub': 'A test azan notification will arrive in 5 seconds',
+    'azan_test_sent': 'Test azan is coming — listen for the sound',
+    'azan_test_need_perm': 'Allow notifications first, then try again',
     'location_sub': 'Prayer times are calculated on your device for the selected city.',
     'search_city': 'Search city',
     'no_city_found': 'No city found',
