@@ -446,6 +446,24 @@ class SettingsScreen extends StatelessWidget {
                   style: const TextStyle(fontSize: 13, color: Colors.grey),
                 ),
               ),
+              // v3.2: exact-alarm status + test azan.
+              const _ExactAlarmRow(),
+              ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: primaryGreen.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.volume_up, color: primaryGreen),
+                ),
+                title: Text(tr('azan_test')),
+                subtitle: Text(tr('azan_test_sub')),
+                trailing:
+                    const Icon(Icons.play_arrow, color: primaryGreen),
+                onTap: () => _testAzan(context),
+              ),
               const Divider(),
               SwitchListTile(
                 title: Text(tr('vibration_on_tap')),
@@ -456,6 +474,87 @@ class SettingsScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  /// v3.2: test azan — asks for notification permission if needed,
+  /// then fires a test azan notification ~5 seconds later.
+  Future<void> _testAzan(BuildContext context) async {
+    final granted = await AzanService.requestNotificationPermission();
+    if (!context.mounted) return;
+    if (!granted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('azan_test_need_perm'))));
+      return;
+    }
+    await AzanService.scheduleTestAzan();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(tr('azan_test_sent'))));
+  }
+}
+
+/// v3.2: exact-alarm status row in Settings. Shows whether the system
+/// lets the app fire azan at the exact prayer time; if not, explains
+/// that azan may be a few minutes late and offers a button that opens
+/// the system "Alarms & reminders" screen.
+class _ExactAlarmRow extends StatefulWidget {
+  const _ExactAlarmRow();
+  @override
+  State<_ExactAlarmRow> createState() => _ExactAlarmRowState();
+}
+
+class _ExactAlarmRowState extends State<_ExactAlarmRow> {
+  bool? _exactOk;
+  bool _asking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final ok = await AzanService.canScheduleExactAlarms();
+    if (mounted) setState(() => _exactOk = ok);
+  }
+
+  Future<void> _ask() async {
+    setState(() => _asking = true);
+    await AzanService.requestExactAlarms();
+    await _refresh();
+    if (mounted) setState(() => _asking = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final granted = _exactOk ?? true;
+    return ListTile(
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: (granted ? primaryGreen : Colors.orange).withOpacity(0.12),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Icon(Icons.alarm,
+            color: granted ? primaryGreen : Colors.orange),
+      ),
+      title: Text(tr('exact_alarm_title')),
+      subtitle:
+          Text(granted ? tr('exact_alarm_on') : tr('exact_alarm_off')),
+      trailing: _exactOk == null
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : granted
+              ? const Icon(Icons.check_circle, color: primaryGreen)
+              : FilledButton(
+                  onPressed: _asking ? null : _ask,
+                  child: Text(tr('exact_alarm_allow')),
+                ),
     );
   }
 }
