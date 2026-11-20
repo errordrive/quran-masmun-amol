@@ -5,9 +5,11 @@ prayer times, the full Quran, Hadith, daily duas, masnun amol, Asmaul Husna,
 tasbih, a namaz tracker, and Sehri & Iftar times — **all working offline**.
 
 - Package: `com.nayem.quranamol`
-- Version: 2.0.1+5
+- Version: 3.0.0+6
 - Flutter 3.35 stable, Material 3, light + dark theme (follows system)
-- Primary green `#15803D`, no gradients, no heavy shadows, 8px grid, min touch 48px
+- Deep green `#0E6E36` headers/hero cards + gold `#D9A441` accents on a warm
+  off-white background; subtle gradients only on the splash screen and
+  the Next Prayer hero card; 8px grid, min touch 48px
 - Dependencies: Flutter SDK + `shared_preferences`, `flutter_local_notifications`,
   `timezone`, `just_audio`, `path_provider`, `flutter_compass`, `home_widget`
 
@@ -64,6 +66,53 @@ tasbih, a namaz tracker, and Sehri & Iftar times — **all working offline**.
   dates depend on moon sighting and are never presented as exact. Dates
   live in one table (`lib/data/islamic_events.dart`) so they are easy
   to correct later.
+
+## What's new in v3.0
+
+- **Full UI redesign (reference look)** — deep green headers/cards,
+  white content areas, green + gold/amber accents, clean rounded cards,
+  built with Flutter widgets + icons + solid colors only (no images;
+  the crescent, mosque silhouette and star pattern are drawn in code).
+  A subtle gradient is allowed only on the splash screen and the Next
+  Prayer hero card. The v2.0.1 minimal floating bottom nav is unchanged
+  (transparent Row, active = green rounded rect + white icon/label,
+  inactive = muted grey) and still hides on every sub-screen.
+- **Splash screen (new)** — green gradient, crescent + mosque motif,
+  "Quran & Masnun Amol", "Read • Learn • Practice", "Loading..." —
+  brief, then straight to Home.
+- **Home rebuilt** — location row + search bar, Hijri/Gregorian date
+  header under the location row, Next Prayer hero card (name + time in
+  gold + countdown), prayer strip (Fajr/Sunrise/Dhuhr/Asr/Maghrib/Isha),
+  3-column category grid, Daily Dua + Daily Hadith cards, Khatam
+  progress. **Jumu'ah:** on Fridays a special green reminder card
+  appears ("জুম'আর দিন" — Surah Al-Kahf, salawat, Jumu'ah preparation),
+  and Dhuhr is labelled "জুম'আ" everywhere (Home strip, Next Prayer
+  card, Prayer list, azan toggles) via `displayPrayerName()`.
+- **New categories** — Zakat Calculator, Islamic Knowledge, and Stories
+  of Prophets tiles on Home (each opens its own screen).
+- **Quran reader rebuilt** — green surah header card (Arabic name,
+  meaning, ayah count, Bismillah + transliteration), ayah cards with
+  number circle, Arabic text, Bangla translation, per-ayah speaker
+  button, and a bottom action row (Bookmark / Share / Ayah / More)
+  acting on the tapped ayah. Player controls are now prev /
+  play-pause / next with ayah-based progress (Ayah X / N) wired to the
+  existing audio service — no API change.
+- **Prayer Times rebuilt** — green header band with location, Next
+  Prayer hero, full prayer list with icons, and a **Monthly Calendar**
+  button: a month grid where every day shows its Fajr + Maghrib times
+  (on-device calculation, no network), tapping a day shows its full
+  prayer list. Sehri & Iftar, Namaz tracker, Qibla and method settings
+  are unchanged.
+- **Me / My Account rebuilt** — green profile header, Credit Wallet
+  card, Premium Access row, Bookmarks, Reading Progress (khatam),
+  Settings, Help & Support — same navigation targets as before.
+- **Real azan sound** — Settings → আজান নোটিফিকেশন has a new
+  "আজানের শব্দ" toggle (on by default): notifications can now play the
+  real azan sound instead of the default notification sound only.
+- **Home dates** — the Hijri + Gregorian date header now sits on Home
+  under the location row.
+- **Beautified tasbih** — the tasbih counter screens were restyled to
+  match the new deep-green + gold look.
 
 ## What's new in v2.0.1
 
@@ -253,12 +302,16 @@ lib/
                        navigation.dart (tab switching),
                        strings.dart (Bangla/English UI strings, ~210 keys)
   screens/             home.dart, prayer.dart, quran.dart (list + reader),
+                       month_calendar.dart (v3.0 monthly grid),
+                       zakat.dart, knowledge.dart, stories.dart (v3.0),
                        content.dart (duas, hadith, tasbih, search, Asmaul Husna),
                        me.dart (Me, settings, credit store, payment, lists)
   widgets/common.dart  AppScaffold (8-point-star texture background),
                        MainNavBar (floating pill), PrimaryButton/TonalButton/
                        TonalIconButton/CopyShareRow, SectionTitle, Top bar,
-                       location picker, copy/share, empty/loading states
+                       location picker, copy/share, empty/loading states,
+                       NextPrayerHero, PrayerStrip, CategoryTile (v3.0)
+  widgets/date_header.dart  DateHeader (v3.0, Hijri + Gregorian on Home)
 assets/
   quran.json           114 surahs, 6,236 ayahs (Arabic + English), 2.52 MB
   quran_bn.json        Bangla translation, same 6,236 ayahs, 2.35 MB
