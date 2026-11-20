@@ -6,17 +6,22 @@
 // - Schedules today + tomorrow on app start (and whenever azan settings,
 //   city or method change); after a phone restart, opening the app once
 //   re-schedules everything.
-// - Sound: the default notification sound only. NO azan audio is bundled
-//   (licensing risk) and none is downloaded.
+// - Sound: the bundled real azan recording (android/.../res/raw/azan.mp3)
+//   when AppState.azanSoundEnabled is on, otherwise the default sound.
+//   Android fixes a channel's sound at creation time, so the azan sound
+//   uses its own channel ('azan_sound_channel'); the pre-existing
+//   'azan_channel' (created with the default sound) is kept for the
+//   sound-off case, so both paths work on fresh and existing installs.
 // - Android 13+ POST_NOTIFICATIONS and exact-alarm permission are
 //   requested; if exact alarms are denied, scheduling falls back to
-//   inexact mode instead of crashing. Sunrise is never notified.
+//   inexact mode instead of crashing. Sunrise is never notified:
+//   scheduleAll iterates DayPrayerTimes.prayers (Fajr, Dhuhr, Asr,
+//   Maghrib, Isha) only — Sunrise is not in that list.
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'app_state.dart';
 import 'prayer.dart';
-import 'strings.dart';
 
 class AzanService {
   static final FlutterLocalNotificationsPlugin _plugin =
@@ -71,14 +76,20 @@ class AzanService {
           if (!state.azanFor(i)) continue;
           final t = prayers[i].$2;
           if (!t.isAfter(now)) continue;
-          final name = prayerName(prayers[i].$1);
+          // Friday Dhuhr is labelled জুম'আ; the notification still
+          // fires at the Dhuhr time. Sunrise is never in this list.
+          final name = displayPrayerName(prayers[i].$1, t);
+          final soundOn = state.azanSoundEnabled;
           final details = NotificationDetails(
             android: AndroidNotificationDetails(
-              'azan_channel',
+              soundOn ? 'azan_sound_channel' : 'azan_channel',
               'আজান নোটিফিকেশন',
               channelDescription: 'নামাজের সময়ের নোটিফিকেশন',
               importance: Importance.high,
               priority: Priority.high,
+              sound: soundOn
+                  ? const RawResourceAndroidNotificationSound('azan')
+                  : null,
             ),
           );
           // Schedule by instant in UTC: tz.local defaults to UTC in the
