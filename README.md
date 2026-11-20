@@ -5,7 +5,7 @@ prayer times, the full Quran, Hadith, daily duas, masnun amol, Asmaul Husna,
 tasbih, a namaz tracker, and Sehri & Iftar times — **all working offline**.
 
 - Package: `com.nayem.quranamol`
-- Version: 2.0.0+4
+- Version: 2.0.1+5
 - Flutter 3.35 stable, Material 3, light + dark theme (follows system)
 - Primary green `#15803D`, no gradients, no heavy shadows, 8px grid, min touch 48px
 - Dependencies: Flutter SDK + `shared_preferences`, `flutter_local_notifications`,
@@ -27,12 +27,16 @@ tasbih, a namaz tracker, and Sehri & Iftar times — **all working offline**.
   player bar: play/pause/stop for the current surah, ayah-by-ayah
   auto-advance with the playing ayah highlighted, and "এই আয়াত থেকে
   তিলাওয়াত শুনুন" from any ayah's action sheet. Reciter: Mishary Rashid
-  Alafasy. Audio streams per-ayah MP3s from the Islamic Network CDN
-  (`cdn.islamic.network/quran/audio/64/ar.alafasy/001001.mp3` …) — the
-  APK stays small because **no audio is bundled**. A per-surah download
-  button saves that surah's MP3s into the app documents folder for
-  offline playback (with progress + delete); the whole Quran is never
-  downloaded at once. No internet → a clear "ইন্টারনেট লাগবে" message.
+  Alafasy. Audio streams per-ayah MP3s from EveryAyah
+  (`everyayah.com/data/Alafasy_64kbps/001001.mp3` …) — the APK stays
+  small because **no audio is bundled**. (v2.0.1: the Islamic Network
+  CDN per-ayah path returned HTTP 403, so the host was switched; file
+  names are identical.) A per-surah download button saves that surah's
+  MP3s into the app documents folder for offline playback (with
+  progress + delete); the whole Quran is never downloaded at once.
+  Errors blame the right cause: genuinely no network → "ইন্টারনেট
+  সংযোগ নেই", server/audio unavailable → "অডিও পাওয়া যায়নি — পরে
+  আবার চেষ্টা করুন", local-playback failure → a plain retry message.
 - **Qibla compass** — reachable from Home and the Prayer tab. Bearing +
   distance to the Kaaba are computed in pure Dart from the selected
   city's coordinates; the live heading comes from the device compass
@@ -60,6 +64,23 @@ tasbih, a namaz tracker, and Sehri & Iftar times — **all working offline**.
   dates depend on moon sighting and are never presented as exact. Dates
   live in one table (`lib/data/islamic_events.dart`) so they are easy
   to correct later.
+
+## What's new in v2.0.1
+
+- **Minimal floating bottom navigation** — the full-width pill is
+  gone: no background container, no border, no shadow. Just 3 items
+  (হোম / নামাজ / আমি) in a transparent Row floating above the system
+  gesture area (SafeArea). Active item: green rounded rectangle with
+  white icon + label; inactive: muted grey, no background. Custom
+  widget, not BottomNavigationBar / NavigationBar. Still only on the
+  3 main tabs (RouteObserver + rootNavigator hiding unchanged); main
+  tabs keep their 96px bottom padding, which clears the new bar.
+- **Audio CDN fixed** — the Islamic Network per-ayah path returned
+  HTTP 403 (the app wrongly blamed the internet), so per-ayah MP3s
+  now stream/download from `everyayah.com/data/Alafasy_64kbps/`
+  (verified HTTP 200). Same file names, same Alafasy reciter, same
+  per-surah download. Errors now blame the right cause: no network,
+  audio unavailable on the server, or a local playback failure.
 
 ## What's new in v1.2
 
