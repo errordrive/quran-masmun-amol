@@ -278,6 +278,26 @@ String displayPrayerName(String english, DateTime date) {
   return prayerName(english);
 }
 
+/// Index of a prayer in the 5-prayer list (Fajr 0, Dhuhr 1, Asr 2,
+/// Maghrib 3, Isha 4); -1 for Sunrise and anything else. Used by the
+/// prayer list for the per-prayer azan toggle + prayed checkbox.
+int prayerIndexFor(String english) {
+  switch (english) {
+    case 'Fajr':
+      return 0;
+    case 'Dhuhr':
+      return 1;
+    case 'Asr':
+      return 2;
+    case 'Maghrib':
+      return 3;
+    case 'Isha':
+      return 4;
+    default:
+      return -1;
+  }
+}
+
 // ---------------- Formatting helpers (no intl dependency) ----------------
 
 const List<String> _monthNames = [
