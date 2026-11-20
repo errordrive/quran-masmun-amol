@@ -1,26 +1,27 @@
-// Home tab (v3.0 redesign, reference layout): location row + search,
-// Hijri/Gregorian date header, Next Prayer hero, prayer strip,
-// Jumu'ah card on Fridays, 3-column category grid (incl. the 3 new
-// v3.0 tiles), Daily Dua + Daily Hadith cards, Khatam progress.
+// Home tab (v3.3 redesign, approved dark emerald preview): header
+// with location + bell/settings, search, Hijri/Gregorian date chips,
+// Next Prayer hero (mosque silhouette, live countdown, day-progress
+// bar, azan pill), full prayer list, Jumu'ah card on Fridays, quick
+// actions (Tasbih, Quran, Duas, Calendar, Qibla, Zakat), daily hadith
+// gold card, and an "আরও" section for the remaining entry points
+// (Azkar, Asmaul Husna, Khatam, Knowledge, Stories, Events, Fasting).
 // v1.1: Bangla by default. v1.2: daily dua is date-seeded random.
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/duas.dart';
-import '../data/hadith.dart';
-import '../data/surah_ayah_counts.dart';
-import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/navigation.dart';
 import '../services/prayer.dart';
 import '../services/strings.dart';
-import '../theme.dart';
 import '../widgets/common.dart';
-import '../widgets/date_header.dart';
+import '../widgets/dark_ui.dart';
 import 'content.dart';
 import 'events.dart';
 import 'khatam.dart';
 import 'knowledge.dart';
+import 'me.dart';
 import 'month_calendar.dart';
+import 'qibla.dart';
 import 'quran.dart';
 import 'stories.dart';
 import 'zakat.dart';
@@ -48,28 +49,43 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  void _openSettings() {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
+  }
+
+  void _openSearch() {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const SearchScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = AppState.instance;
     final now = DateTime.now();
     final today = state.prayerTimesFor(now);
+    final yesterday =
+        state.prayerTimesFor(now.subtract(const Duration(days: 1)));
     final tomorrow = state.prayerTimesFor(now.add(const Duration(days: 1)));
     final (_, next, nextTime) = currentAndNextPrayer(today, tomorrow, now);
     final countdown = nextTime.difference(now);
-    final dailyDua = state.dailyDua(now);
+    final progress = prayerDayProgress(today, yesterday, tomorrow, now);
     final dailyHadith = state.dailyHadith(now);
     final isFriday = now.weekday == DateTime.friday;
+    final bn = state.isBangla;
 
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
         return RefreshIndicator(
           onRefresh: () async => setState(() {}),
-          color: primaryGreen,
+          color: v33Green,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
             children: [
-              // Location row + avatar (reference layout).
+              // Header: location + bell/settings (preview .header).
               Row(
                 children: [
                   InkWell(
@@ -78,117 +94,152 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.location_on,
-                            size: 20, color: primaryGreen),
-                        const SizedBox(width: 4),
-                        Text(state.cityName,
-                            style: const TextStyle(
-                                fontSize: 17, fontWeight: FontWeight.w700)),
-                        const Icon(Icons.keyboard_arrow_down,
-                            size: 20, color: Colors.grey),
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: v33Green.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.location_on,
+                              size: 18, color: v33GreenLight),
+                        ),
+                        const SizedBox(width: 7),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(state.cityName,
+                                    style: const TextStyle(
+                                        fontSize: 16.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: v33Text)),
+                                const Icon(Icons.keyboard_arrow_down,
+                                    size: 18, color: v33Muted),
+                              ],
+                            ),
+                            Text(
+                              bn
+                                  ? 'নামাজের সময় • বাংলাদেশ'
+                                  : 'Prayer times • Bangladesh',
+                              style: const TextStyle(
+                                  fontSize: 11, color: Color(0xFF9DB8AD)),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
                   const Spacer(),
-                  TonalIconButton(
-                    icon: Icons.person,
-                    tooltip: tr('tab_me'),
-                    onPressed: () => goToTab(2),
+                  // Bell: gold dot while azan is on; opens Settings
+                  // (the azan notification settings live there).
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      V33RoundButton(
+                        icon: Icons.notifications_outlined,
+                        onTap: _openSettings,
+                      ),
+                      if (state.azanEnabled)
+                        Positioned(
+                          top: 7,
+                          right: 8,
+                          child: Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: v33GoldDeep,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: v33Background, width: 1.5),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  V33RoundButton(
+                    icon: Icons.settings_outlined,
+                    onTap: _openSettings,
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              // Search bar (wired to the existing search screen).
-              InkWell(
-                onTap: () => Navigator.of(context, rootNavigator: true).push(
-                  MaterialPageRoute(builder: (_) => const SearchScreen()),
-                ),
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 48),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+              const SizedBox(height: 10),
+              // Search bar (real Quran search).
+              V33SearchBar(
+                hint: tr('search_hint'),
+                onTap: _openSearch,
+                trailing: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardTheme.color,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                        color:
-                            Theme.of(context).dividerColor.withOpacity(0.5)),
+                    color: v33Green.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.search, size: 20, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(tr('search_hint'),
-                            style: TextStyle(color: Colors.grey.shade600),
-                            overflow: TextOverflow.ellipsis),
-                      ),
-                    ],
+                  child: Text(
+                    bn ? 'সূরা • আয়াত' : 'Surah • Ayah',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: v33GreenLight),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              // Hijri + Gregorian date header (v3.0, other builder).
-              const DateHeader(),
-              const SizedBox(height: 16),
-              // Next Prayer hero card.
-              NextPrayerHero(
+              const SizedBox(height: 10),
+              // Hijri + Gregorian date chips.
+              V33DateChips(date: now),
+              const SizedBox(height: 10),
+              // Next Prayer hero.
+              V33Hero(
                 prayerEnglish: next,
                 prayerDate: nextTime,
                 time: nextTime,
                 countdown: countdown,
-                cityName: state.cityName,
+                progress: progress,
                 onTap: () => goToTab(1),
               ),
-              const SizedBox(height: 12),
-              // Prayer strip (Fajr..Isha + Sunrise).
-              PrayerStrip(
+              const SizedBox(height: 10),
+              // Full prayer list (bell + prayed checkbox per prayer).
+              V33PrayerList(
                 times: today,
-                nextEnglish: next,
                 date: now,
-                onTap: () => goToTab(1),
+                nextEnglish: next,
               ),
-              // Jumu'ah reminder, Fridays only (v3.0).
+              // Jumu'ah reminder, Fridays only.
               if (isFriday) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
                 _JumuahCard(onTap: () => goToTab(1)),
               ],
-              const SizedBox(height: 16),
-              // Quick-access row (v3.1, reference video): Azkar, Tasbih,
-              // Calendar, Duas, Names, Tracker, Fasting — all map to
-              // EXISTING screens, no new screens invented.
-              const _QuickAccessRow(),
-              const SizedBox(height: 28),
-              SectionTitle(title: tr('categories')),
-              const SizedBox(height: 12),
-              GridView.count(
-                crossAxisCount: 3,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.92,
+              const SizedBox(height: 11),
+              // Quick actions (preview .quick): 6 items.
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  CategoryTile(
+                  V33QuickAction(
+                    icon: Icons.fingerprint,
+                    label: tr('tasbih'),
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const TasbihListScreen()),
+                    ),
+                  ),
+                  V33QuickAction(
                     icon: Icons.menu_book,
                     label: tr('cat_quran'),
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => const QuranListScreen()),
                     ),
                   ),
-                  CategoryTile(
-                    icon: Icons.auto_stories,
-                    label: tr('cat_hadith'),
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
-                      MaterialPageRoute(
-                          builder: (_) => const HadithCollectionScreen()),
-                    ),
-                  ),
-                  CategoryTile(
+                  V33QuickAction(
                     icon: Icons.volunteer_activism,
-                    label: AppState.instance.isBangla ? 'দুয়া' : 'Dua',
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                    label: tr('quick_duas'),
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => CategoryListScreen(
                               title: tr('cat_daily_dua'),
@@ -196,110 +247,147 @@ class _HomeScreenState extends State<HomeScreen> {
                               subtitle: tr('all_duas'))),
                     ),
                   ),
-                  CategoryTile(
-                    icon: Icons.fingerprint,
-                    label: tr('cat_tasbih'),
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                  V33QuickAction(
+                    icon: Icons.calendar_month,
+                    label: tr('quick_calendar'),
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
-                          builder: (_) => const TasbihListScreen()),
+                          builder: (_) => const MonthlyCalendarScreen()),
                     ),
                   ),
-                  CategoryTile(
-                    icon: Icons.handshake,
-                    label: AppState.instance.isBangla
-                        ? 'মাসনুন আমল'
-                        : 'Masnun Amol',
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                  V33QuickAction(
+                    icon: Icons.explore,
+                    label: tr('cat_qibla'),
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
-                          builder: (_) => CategoryListScreen(
-                              title: tr('cat_masnun'),
-                              duas: duasByCategory('daily'),
-                              subtitle: tr('daily_sub'))),
+                          builder: (_) => const QiblaScreen()),
                     ),
                   ),
-                  CategoryTile(
-                    icon: Icons.auto_awesome,
-                    label: AppState.instance.isBangla
-                        ? 'আসমাউল হুসনা'
-                        : 'Asma ul Husna',
-                    badge: AppState.instance.isBangla ? '৯৯' : '99',
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
-                      MaterialPageRoute(
-                          builder: (_) => const AsmaulHusnaScreen()),
-                    ),
-                  ),
-                  // ---- v3.0 new tiles ----
-                  CategoryTile(
+                  V33QuickAction(
                     icon: Icons.calculate,
-                    label: AppState.instance.isBangla
-                        ? 'যাকাত ক্যালকুলেটর'
-                        : 'Zakat Calculator',
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                    label: bn ? 'যাকাত' : 'Zakat',
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => const ZakatCalculatorScreen()),
                     ),
                   ),
-                  CategoryTile(
+                ],
+              ),
+              const SizedBox(height: 11),
+              // Daily hadith gold card (compact, preview .daily).
+              InkWell(
+                onTap: () => Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(
+                      builder: (_) => HadithDetailScreen(hadith: dailyHadith)),
+                ),
+                borderRadius: BorderRadius.circular(18),
+                child: V33GoldCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      V33GoldLabel('✦ ${tr('daily_hadith')}'),
+                      const SizedBox(height: 5),
+                      Text(
+                        bn ? dailyHadith.banglaMeaning : dailyHadith.english,
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            height: 1.45,
+                            color: v33Text),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${dailyHadith.collection} • ${dailyHadith.number} • ${tr('see_all')} →',
+                        style: const TextStyle(
+                            fontSize: 11.5, color: Color(0xFF9DB8AD)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // "আরও" — remaining entry points that have no quick
+              // action: Azkar, Asmaul Husna, Khatam, Knowledge,
+              // Stories, Events, Fasting.
+              V33SectionLabel(tr('more_section')),
+              const SizedBox(height: 10),
+              GridView.count(
+                crossAxisCount: 3,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.35,
+                children: [
+                  _MoreTile(
+                    icon: Icons.wb_sunny,
+                    label: tr('azkar'),
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => CategoryListScreen(
+                              title: tr('cat_morning'),
+                              duas: duasByCategory('morning'),
+                              subtitle: tr('morning_sub'))),
+                    ),
+                  ),
+                  _MoreTile(
+                    icon: Icons.auto_awesome,
+                    label: tr('quick_names'),
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const AsmaulHusnaScreen()),
+                    ),
+                  ),
+                  _MoreTile(
+                    icon: Icons.checklist,
+                    label: tr('quick_tracker'),
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const KhatamScreen()),
+                    ),
+                  ),
+                  _MoreTile(
                     icon: Icons.lightbulb,
-                    label: AppState.instance.isBangla
-                        ? 'ইসলামিক জ্ঞান'
-                        : 'Islamic Knowledge',
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                    label: bn ? 'ইসলামিক জ্ঞান' : 'Islamic Knowledge',
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => const IslamicKnowledgeScreen()),
                     ),
                   ),
-                  CategoryTile(
+                  _MoreTile(
                     icon: Icons.menu_book_outlined,
-                    label: AppState.instance.isBangla
-                        ? 'নবীদের গল্প'
-                        : 'Stories of Prophets',
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                    label: bn ? 'নবীদের গল্প' : 'Prophet Stories',
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => const ProphetStoriesScreen()),
                     ),
                   ),
-                  CategoryTile(
+                  _MoreTile(
                     icon: Icons.calendar_month,
                     label: tr('cat_events'),
-                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => const IslamicEventsScreen()),
                     ),
                   ),
+                  _MoreTile(
+                    icon: Icons.nightlight_round,
+                    label: tr('quick_fasting'),
+                    onTap: () => goToTab(1),
+                  ),
                 ],
               ),
-              const SizedBox(height: 28),
-              SectionTitle(
-                title: tr('daily_dua'),
-                action: TextButton(
-                  onPressed: () => Navigator.of(context, rootNavigator: true).push(
-                    MaterialPageRoute(
-                        builder: (_) => CategoryListScreen(
-                            title: tr('cat_daily_dua'),
-                            duas: duas,
-                            subtitle: tr('all_duas'))),
-                  ),
-                  child: Text(tr('see_all')),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DailyDuaCard(dua: dailyDua),
-              const SizedBox(height: 28),
-              SectionTitle(
-                title: tr('daily_hadith'),
-                action: TextButton(
-                  onPressed: () => Navigator.of(context, rootNavigator: true).push(
-                    MaterialPageRoute(
-                        builder: (_) => const HadithCollectionScreen()),
-                  ),
-                  child: Text(tr('see_all')),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DailyHadithCard(hadith: dailyHadith),
-              const SizedBox(height: 28),
-              const KhatamProgressCard(),
             ],
           ),
         );
@@ -308,7 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ---------------- Jumu'ah reminder card (v3.0, Fridays only) ----------------
+// ---------------- Jumu'ah reminder card (Fridays only) ----------------
 
 class _JumuahCard extends StatelessWidget {
   final VoidCallback onTap;
@@ -321,7 +409,10 @@ class _JumuahCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
-        decoration: greenHeroDecoration(),
+        decoration: BoxDecoration(
+          gradient: v33HeroGradient,
+          borderRadius: BorderRadius.circular(20),
+        ),
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
@@ -363,354 +454,48 @@ class _JumuahCard extends StatelessWidget {
   }
 }
 
-// ---------------- Quick-access row (v3.1, reference video) ----------------
+// ---------------- "আরও" mini tile ----------------
 
-/// Compact horizontal icon row under the prayer strip. Every item maps
-/// to an EXISTING screen: Azkar = morning duas, Tasbih = tasbih list,
-/// Calendar = monthly calendar, Duas = all duas, Names = Asmaul Husna,
-/// Tracker = Khatam tracker, Fasting = Prayer tab (Sehri & Iftar card).
-class _QuickAccessRow extends StatelessWidget {
-  const _QuickAccessRow();
+class _MoreTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _MoreTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final items = <({IconData icon, String label, VoidCallback onTap})>[
-      (
-        icon: Icons.wb_sunny,
-        label: tr('azkar'),
-        onTap: () => Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-              builder: (_) => CategoryListScreen(
-                  title: tr('cat_morning'),
-                  duas: duasByCategory('morning'),
-                  subtitle: tr('morning_sub'))),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.09)),
         ),
-      ),
-      (
-        icon: Icons.fingerprint,
-        label: tr('tasbih'),
-        onTap: () => Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(builder: (_) => const TasbihListScreen()),
-        ),
-      ),
-      (
-        icon: Icons.calendar_month,
-        label: tr('quick_calendar'),
-        onTap: () => Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-              builder: (_) => const MonthlyCalendarScreen()),
-        ),
-      ),
-      (
-        icon: Icons.volunteer_activism,
-        label: tr('quick_duas'),
-        onTap: () => Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(
-              builder: (_) => CategoryListScreen(
-                  title: tr('cat_daily_dua'),
-                  duas: duas,
-                  subtitle: tr('all_duas'))),
-        ),
-      ),
-      (
-        icon: Icons.auto_awesome,
-        label: tr('quick_names'),
-        onTap: () => Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(builder: (_) => const AsmaulHusnaScreen()),
-        ),
-      ),
-      (
-        icon: Icons.checklist,
-        label: tr('quick_tracker'),
-        onTap: () => Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute(builder: (_) => const KhatamScreen()),
-        ),
-      ),
-      (
-        icon: Icons.nightlight_round,
-        label: tr('quick_fasting'),
-        onTap: () => goToTab(1),
-      ),
-    ];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final item in items)
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: v33GreenLight, size: 24),
+            const SizedBox(height: 6),
             Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: InkWell(
-                onTap: item.onTap,
-                borderRadius: BorderRadius.circular(16),
-                child: SizedBox(
-                  width: 68,
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: primaryGreen.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(item.icon,
-                            color: primaryGreen, size: 26),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(item.label,
-                          style: const TextStyle(
-                              fontSize: 11, fontWeight: FontWeight.w700),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class DailyDuaCard extends StatelessWidget {
-  final Dua dua;
-  const DailyDuaCard({super.key, required this.dua});
-
-  @override
-  Widget build(BuildContext context) {
-    final state = AppState.instance;
-    final bn = state.isBangla;
-    final title = bn ? dua.banglaTitle : dua.title;
-    final meaning = bn ? dua.banglaMeaning : dua.meaning;
-    final fav = state.favoriteDuas.contains(dua.id);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: primaryGreen.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.volunteer_activism,
-                      color: primaryGreen),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(title,
-                      style: const TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.w800)),
-                ),
-                TonalIconButton(
-                  icon: fav ? Icons.favorite : Icons.favorite_border,
-                  filled: fav,
-                  tooltip: tr('favorite'),
-                  onPressed: () => state.toggleFavoriteDua(dua.id),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(dua.arabic,
-                textAlign: TextAlign.right,
-                textDirection: TextDirection.rtl,
-                style: TextStyle(fontSize: state.arabicSize, height: 1.9)),
-            const SizedBox(height: 12),
-            Text(dua.transliteration,
-                style: const TextStyle(fontStyle: FontStyle.italic)),
-            const SizedBox(height: 8),
-            Text(meaning, style: const TextStyle(fontSize: 15, height: 1.6)),
-            const SizedBox(height: 4),
-            Text(dua.reference,
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 16),
-            CopyShareRow(
-              onCopy: () =>
-                  copyText(context, '${dua.arabic}\n$meaning', title),
-              onShare: () =>
-                  shareText(context, '$title\n${dua.arabic}\n$meaning'),
-            ),
-            const SizedBox(height: 8),
-            PrimaryButton(
-              label: tr('open'),
-              icon: Icons.arrow_forward,
-              onPressed: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(builder: (_) => DuaDetailScreen(dua: dua)),
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(label,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: v33Sub),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-// ---------------- Daily Hadith card (v2.0) ----------------
-
-class DailyHadithCard extends StatelessWidget {
-  final Hadith hadith;
-  const DailyHadithCard({super.key, required this.hadith});
-
-  @override
-  Widget build(BuildContext context) {
-    final state = AppState.instance;
-    final bn = state.isBangla;
-    final meaning = bn ? hadith.banglaMeaning : hadith.english;
-    final fav =
-        state.favoriteHadiths.contains('${hadith.collection}|${hadith.number}');
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: primaryGreen.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.auto_stories, color: primaryGreen),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text('${hadith.collection} ${hadith.number}',
-                      style: const TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.w800)),
-                ),
-                TonalIconButton(
-                  icon: fav ? Icons.favorite : Icons.favorite_border,
-                  filled: fav,
-                  tooltip: tr('favorite'),
-                  onPressed: () => state.toggleFavoriteHadith(
-                      '${hadith.collection}|${hadith.number}'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(hadith.arabic,
-                textAlign: TextAlign.right,
-                textDirection: TextDirection.rtl,
-                style:
-                    TextStyle(fontSize: state.arabicSize, height: 1.9)),
-            const SizedBox(height: 12),
-            Text(meaning, style: const TextStyle(fontSize: 15, height: 1.6)),
-            const SizedBox(height: 4),
-            Text('${tr('narrated_by')} ${hadith.narrator} · ${hadith.grade}',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 16),
-            CopyShareRow(
-              onCopy: () => copyText(
-                  context,
-                  '${hadith.arabic}\n$meaning\n(${hadith.collection} ${hadith.number})',
-                  tr('hadith_word')),
-              onShare: () => shareText(
-                  context,
-                  '${hadith.arabic}\n$meaning\n(${hadith.collection} ${hadith.number})'),
-            ),
-            const SizedBox(height: 8),
-            PrimaryButton(
-              label: tr('open'),
-              icon: Icons.arrow_forward,
-              onPressed: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(
-                    builder: (_) => HadithDetailScreen(hadith: hadith)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------- Khatam progress card (v2.0) ----------------
-
-class KhatamProgressCard extends StatelessWidget {
-  const KhatamProgressCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final state = AppState.instance;
-    return ListenableBuilder(
-      listenable: state,
-      builder: (context, _) {
-        final bn = state.isBangla;
-        final read = state.khatamReadAyahs();
-        final progress = read / totalQuranAyahs;
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: primaryGreen.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child:
-                          const Icon(Icons.checklist, color: primaryGreen),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(tr('khatam'),
-                        style: const TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w800)),
-                    const Spacer(),
-                    Text('${(progress * 100).toStringAsFixed(1)}%',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            color: primaryGreen)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 10,
-                    backgroundColor: primaryGreen.withOpacity(0.15),
-                    valueColor:
-                        const AlwaysStoppedAnimation<Color>(primaryGreen),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                    '$read / $totalQuranAyahs ${bn ? 'আয়াত পড়া হয়েছে' : 'ayahs read'}',
-                    style: const TextStyle(color: Colors.grey)),
-                const SizedBox(height: 12),
-                TonalButton(
-                  label: bn ? 'খতম ট্র্যাকার খুলুন' : 'Open Khatam Tracker',
-                  icon: Icons.arrow_forward,
-                  onPressed: () =>
-                      Navigator.of(context, rootNavigator: true).push(
-                    MaterialPageRoute(
-                        builder: (_) => const KhatamScreen()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
