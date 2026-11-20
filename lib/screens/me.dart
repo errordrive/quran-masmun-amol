@@ -8,6 +8,7 @@ import '../data/surah_names_bn.dart';
 import '../data/tasbih.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
+import '../services/azan_service.dart';
 import '../services/prayer.dart';
 import '../services/quran_service.dart';
 import '../services/strings.dart';
@@ -30,7 +31,7 @@ class MeScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
             AppTopBar(
-              onSearchTap: () => Navigator.of(context).push(
+              onSearchTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(builder: (_) => const SearchScreen()),
               ),
             ),
@@ -105,7 +106,7 @@ class MeScreen extends StatelessWidget {
                       ),
                     ),
                     FilledButton(
-                      onPressed: () => Navigator.of(context).push(
+                      onPressed: () => Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(
                             builder: (_) => const CreditStoreScreen()),
                       ),
@@ -121,7 +122,7 @@ class MeScreen extends StatelessWidget {
               title: tr('favorites'),
               subtitle: '${state.favoriteDuas.length} ${tr('duas_count')} · '
                   '${state.favoriteHadiths.length} ${tr('hadiths_count2')}',
-              onTap: () => Navigator.of(context).push(
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(builder: (_) => const FavoritesScreen()),
               ),
             ),
@@ -130,7 +131,7 @@ class MeScreen extends StatelessWidget {
               title: tr('bookmarks'),
               subtitle:
                   '${state.bookmarks.length} ${tr('ayahs_bookmarked')}',
-              onTap: () => Navigator.of(context).push(
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(builder: (_) => const BookmarksScreen()),
               ),
             ),
@@ -139,7 +140,7 @@ class MeScreen extends StatelessWidget {
               title: tr('purchase_history'),
               subtitle:
                   '${state.purchases.length} ${tr('purchases_count')}',
-              onTap: () => Navigator.of(context).push(
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(
                     builder: (_) => const PurchaseHistoryScreen()),
               ),
@@ -148,7 +149,7 @@ class MeScreen extends StatelessWidget {
               icon: Icons.settings,
               title: tr('settings'),
               subtitle: tr('settings_sub'),
-              onTap: () => Navigator.of(context).push(
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(builder: (_) => const SettingsScreen()),
               ),
             ),
@@ -156,7 +157,7 @@ class MeScreen extends StatelessWidget {
               icon: Icons.info_outline,
               title: tr('about'),
               subtitle: '${tr('about_sub')} v1.1.0',
-              onTap: () => Navigator.of(context).push(
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(builder: (_) => const AboutScreen()),
               ),
             ),
@@ -314,14 +315,50 @@ class SettingsScreen extends StatelessWidget {
                   value: m,
                   groupValue: state.prayerMethod,
                   onChanged: (v) {
-                    if (v != null) state.setPrayerMethod(v);
+                    if (v != null) {
+                      state.setPrayerMethod(v);
+                      AzanService.scheduleAll();
+                    }
                   },
                 ),
               SwitchListTile(
                 title: Text(tr('asr_hanafi')),
                 subtitle: Text(tr('asr_hanafi_sub')),
                 value: state.asrHanafi,
-                onChanged: (v) => state.setAsrHanafi(v),
+                onChanged: (v) {
+                  state.setAsrHanafi(v);
+                  AzanService.scheduleAll();
+                },
+              ),
+              const Divider(),
+              SectionTitle(title: tr('azan_notif')),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                title: Text(tr('azan_master')),
+                subtitle: Text(tr('azan_master_sub')),
+                value: state.azanEnabled,
+                onChanged: (v) {
+                  state.setAzanEnabled(v);
+                  AzanService.scheduleAll();
+                },
+              ),
+              if (state.azanEnabled)
+                for (var i = 0; i < 5; i++)
+                  SwitchListTile(
+                    title: Text(prayerName(
+                        ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'][i])),
+                    value: state.azanPrayers[i],
+                    onChanged: (v) {
+                      state.setAzanPrayer(i, v);
+                      AzanService.scheduleAll();
+                    },
+                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  tr('azan_note'),
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
+                ),
               ),
               const Divider(),
               SwitchListTile(
@@ -419,7 +456,7 @@ class CreditStoreScreen extends StatelessWidget {
                     subtitle:
                         Text('${pkg.credits} ${tr('credits')} · ${pkg.priceText}'),
                     trailing: FilledButton(
-                      onPressed: () => Navigator.of(context).push(
+                      onPressed: () => Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(
                             builder: (_) => PaymentScreen(package: pkg)),
                       ),
@@ -621,7 +658,7 @@ class FavoritesScreen extends StatelessWidget {
         return AppScaffold(
           appBar: AppBar(title: Text(tr('favorites'))),
           body: ListView(
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.only(bottom: 32),
             children: [
               if (favDuas.isNotEmpty) ...[
                 Padding(
@@ -638,7 +675,7 @@ class FavoritesScreen extends StatelessWidget {
                     title: Text(bn ? d.banglaTitle : d.title),
                     subtitle: Text(d.reference,
                         maxLines: 1, overflow: TextOverflow.ellipsis),
-                    onTap: () => Navigator.of(context).push(
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => DuaDetailScreen(dua: d)),
                     ),
@@ -659,7 +696,7 @@ class FavoritesScreen extends StatelessWidget {
                     title: Text('${h.collection} ${h.number}'),
                     subtitle: Text(bn ? h.banglaMeaning : h.english,
                         maxLines: 2, overflow: TextOverflow.ellipsis),
-                    onTap: () => Navigator.of(context).push(
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => HadithDetailScreen(hadith: h)),
                     ),
@@ -722,7 +759,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
           appBar: AppBar(title: Text(tr('bookmarks'))),
           body: ListView.builder(
             itemCount: items.length,
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.only(bottom: 32),
             itemBuilder: (context, i) {
               final parts = items[i].split(':');
               final surahNo = int.tryParse(parts[0]) ?? 0;
@@ -743,7 +780,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                 ),
                 onTap: surah == null
                     ? null
-                    : () => Navigator.of(context).push(
+                    : () => Navigator.of(context, rootNavigator: true).push(
                           MaterialPageRoute(
                               builder: (_) => QuranReaderScreen(
                                   surah: surah,
@@ -782,7 +819,7 @@ class PurchaseHistoryScreen extends StatelessWidget {
           appBar: AppBar(title: Text(tr('purchase_history'))),
           body: ListView.builder(
             itemCount: state.purchases.length,
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.only(bottom: 32),
             itemBuilder: (context, i) {
               final p = state.purchases[i];
               return ListTile(
@@ -814,7 +851,7 @@ class AboutScreen extends StatelessWidget {
           Text(tr('app_name'),
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          const Text('Version 1.1.0 (build 2)'),
+          const Text('Version 2.0.0 (build 4)'),
           const SizedBox(height: 16),
           Text(tr('about_intro')),
           const SizedBox(height: 16),
