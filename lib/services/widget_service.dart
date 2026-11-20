@@ -8,7 +8,6 @@
 import 'package:home_widget/home_widget.dart';
 import 'app_state.dart';
 import 'prayer.dart';
-import 'strings.dart';
 
 class HomeWidgetService {
   static const String _providerName = 'PrayerWidgetProvider';
@@ -24,7 +23,7 @@ class HomeWidgetService {
           state.prayerTimesFor(now.add(const Duration(days: 1)));
       final (_, next, nextTime) = currentAndNextPrayer(today, tomorrow, now);
       await HomeWidget.saveWidgetData<String>(
-          'next_prayer', prayerName(next));
+          'next_prayer', displayPrayerName(next, nextTime));
       await HomeWidget.saveWidgetData<String>(
           'next_time', formatTime(nextTime, use24h: state.use24h));
       await HomeWidget.saveWidgetData<String>(
