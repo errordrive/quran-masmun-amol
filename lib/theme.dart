@@ -1,10 +1,40 @@
-// Material 3 theme (v1.1): one primary green, flat surfaces, no gradients,
-// no heavy shadows. Soft 20px card corners, 52px buttons, radius 16.
-// Light + dark follow the system by default.
+// Material 3 theme (v3.0): deep-green + gold redesign to match the
+// reference screens — deep green headers/cards, white content areas,
+// green + gold/amber accents, clean cards, rounded corners.
+// A subtle gradient is allowed ONLY on the splash screen and the
+// Next Prayer hero card (see heroGreenGradient); everything else stays
+// flat, per the original no-gradient rule. Light + dark follow the
+// system by default.
 import 'package:flutter/material.dart';
 
 const Color primaryGreen = Color(0xFF15803D);
 const Color primaryGreenDark = Color(0xFF166534);
+
+/// Deep greens for headers, hero cards and the splash (v3.0).
+const Color deepGreen = Color(0xFF0B5C2E);
+const Color headerGreen = Color(0xFF0E6E36);
+
+/// Gold / amber accent (prayer times, badges, active highlights).
+const Color goldAccent = Color(0xFFD9A441);
+const Color goldDark = Color(0xFF9A6B14);
+const Color amberAccent = Color(0xFFF2B134);
+
+/// Warm off-white scaffold background (v3.0, light theme).
+const Color creamBackground = Color(0xFFF7F6F0);
+
+/// Subtle green gradient — splash screen + Next Prayer hero ONLY.
+const LinearGradient heroGreenGradient = LinearGradient(
+  colors: [Color(0xFF0E6E36), Color(0xFF0B5C2E)],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+);
+
+/// Soft green gradient for the splash background.
+const LinearGradient splashGradient = LinearGradient(
+  colors: [Color(0xFF0E6E36), Color(0xFF084626)],
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+);
 
 const double cardRadius = 20;
 const double buttonRadius = 16;
@@ -18,21 +48,26 @@ ThemeData lightTheme() {
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: const Color(0xFFF7F7F2),
+    scaffoldBackgroundColor: creamBackground,
     appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.transparent,
+      backgroundColor: headerGreen,
       surfaceTintColor: Colors.transparent,
-      foregroundColor: Color(0xFF1A1A1A),
+      foregroundColor: Colors.white,
       elevation: 0,
       scrolledUnderElevation: 0,
-      centerTitle: false,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+      ),
     ),
     cardTheme: const CardThemeData(
       elevation: 0,
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(cardRadius)),
-        side: BorderSide(color: Color(0xFFE5E5E0)),
+        side: BorderSide(color: Color(0xFFE7E4D8)),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
@@ -79,11 +114,11 @@ ThemeData lightTheme() {
       fillColor: Colors.white,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE5E5E0)),
+        borderSide: const BorderSide(color: Color(0xFFE7E4D8)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE5E5E0)),
+        borderSide: const BorderSide(color: Color(0xFFE7E4D8)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -110,12 +145,17 @@ ThemeData darkTheme() {
     colorScheme: scheme,
     scaffoldBackgroundColor: const Color(0xFF121212),
     appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.transparent,
+      backgroundColor: deepGreen,
       surfaceTintColor: Colors.transparent,
       foregroundColor: Colors.white,
       elevation: 0,
       scrolledUnderElevation: 0,
-      centerTitle: false,
+      centerTitle: true,
+      titleTextStyle: TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+      ),
     ),
     cardTheme: const CardThemeData(
       elevation: 0,
