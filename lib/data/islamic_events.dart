@@ -19,7 +19,9 @@ class IslamicEvent {
   });
 }
 
-const List<IslamicEvent> islamicEvents = [
+// NOTE: `final`, not `const` — DateTime has no const constructor, so a
+// const list of events would not compile.
+final List<IslamicEvent> islamicEvents = [
   // ---- 2026 ----
   IslamicEvent(
     nameBn: 'শবে মেরাজ',
