@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v2.0: home-screen widget layout — next prayer name, time, countdown. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="পরের নামাজ"
+        android:textSize="12sp"
+        android:textColor="#757575" />
+
+    <TextView
+        android:id="@+id/widget_prayer_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ফজর"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="#15803D" />
+
+    <TextView
+        android:id="@+id/widget_prayer_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="14sp"
+        android:textColor="#1A1A1A" />
+
+    <TextView
+        android:id="@+id/widget_countdown"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="14sp"
+        android:textColor="#15803D" />
+
+    <TextView
+        android:id="@+id/widget_city"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ঢাকা"
+        android:textSize="12sp"
+        android:textColor="#757575" />
+
+</LinearLayout>
