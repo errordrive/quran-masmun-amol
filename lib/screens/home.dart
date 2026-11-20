@@ -3,6 +3,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/duas.dart';
+import '../data/hadith.dart';
+import '../data/surah_ayah_counts.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/navigation.dart';
@@ -11,6 +13,9 @@ import '../services/strings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'content.dart';
+import 'events.dart';
+import 'khatam.dart';
+import 'qibla.dart';
 import 'quran.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -45,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final (current, next, nextTime) = currentAndNextPrayer(today, tomorrow, now);
     final countdown = formatCountdown(nextTime.difference(now));
     final dailyDua = state.dailyDua(now);
+    final dailyHadith = state.dailyHadith(now);
     final bn = state.isBangla;
 
     return ListenableBuilder(
@@ -57,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
             children: [
               AppTopBar(
-                onSearchTap: () => Navigator.of(context).push(
+                onSearchTap: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(builder: (_) => const SearchScreen()),
                 ),
               ),
@@ -167,12 +173,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
-                childAspectRatio: 2.2,
+                childAspectRatio: 1.9,
                 children: [
                   _CategoryTile(
                     icon: Icons.menu_book,
                     label: tr('cat_quran'),
-                    onTap: () => Navigator.of(context).push(
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => const QuranListScreen()),
                     ),
@@ -180,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _CategoryTile(
                     icon: Icons.auto_stories,
                     label: tr('cat_hadith'),
-                    onTap: () => Navigator.of(context).push(
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => const HadithCollectionScreen()),
                     ),
@@ -188,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _CategoryTile(
                     icon: Icons.fingerprint,
                     label: tr('cat_tasbih'),
-                    onTap: () => Navigator.of(context).push(
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => const TasbihListScreen()),
                     ),
@@ -196,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _CategoryTile(
                     icon: Icons.favorite,
                     label: tr('cat_daily_dua'),
-                    onTap: () => Navigator.of(context).push(
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => CategoryListScreen(
                               title: tr('cat_daily_dua'),
@@ -207,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _CategoryTile(
                     icon: Icons.wb_sunny,
                     label: tr('cat_morning'),
-                    onTap: () => Navigator.of(context).push(
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => CategoryListScreen(
                               title: tr('cat_morning'),
@@ -218,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _CategoryTile(
                     icon: Icons.auto_awesome,
                     label: tr('cat_asmaul'),
-                    onTap: () => Navigator.of(context).push(
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => const AsmaulHusnaScreen()),
                     ),
@@ -226,12 +232,36 @@ class _HomeScreenState extends State<HomeScreen> {
                   _CategoryTile(
                     icon: Icons.handshake,
                     label: tr('cat_masnun'),
-                    onTap: () => Navigator.of(context).push(
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => CategoryListScreen(
                               title: tr('cat_masnun'),
                               duas: duasByCategory('daily'),
                               subtitle: tr('daily_sub'))),
+                    ),
+                  ),
+                  _CategoryTile(
+                    icon: Icons.explore,
+                    label: tr('cat_qibla'),
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const QiblaScreen()),
+                    ),
+                  ),
+                  _CategoryTile(
+                    icon: Icons.checklist,
+                    label: tr('cat_khatam'),
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const KhatamScreen()),
+                    ),
+                  ),
+                  _CategoryTile(
+                    icon: Icons.calendar_month,
+                    label: tr('cat_events'),
+                    onTap: () => Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const IslamicEventsScreen()),
                     ),
                   ),
                 ],
@@ -240,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SectionTitle(
                 title: tr('daily_dua'),
                 action: TextButton(
-                  onPressed: () => Navigator.of(context).push(
+                  onPressed: () => Navigator.of(context, rootNavigator: true).push(
                     MaterialPageRoute(
                         builder: (_) => CategoryListScreen(
                             title: tr('cat_daily_dua'),
@@ -252,6 +282,21 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               DailyDuaCard(dua: dailyDua),
+              const SizedBox(height: 28),
+              SectionTitle(
+                title: tr('daily_hadith'),
+                action: TextButton(
+                  onPressed: () => Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute(
+                        builder: (_) => const HadithCollectionScreen()),
+                  ),
+                  child: Text(tr('see_all')),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DailyHadithCard(hadith: dailyHadith),
+              const SizedBox(height: 28),
+              const KhatamProgressCard(),
             ],
           ),
         );
@@ -277,23 +322,26 @@ class _CategoryTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          // Roomy enough for 2-3 lines of Bangla at 13sp with no clipping.
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: primaryGreen.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(icon, color: primaryGreen, size: 26),
+                child: Icon(icon, color: primaryGreen, size: 24),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(label,
                     style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w700)),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        height: 1.35)),
               ),
             ],
           ),
@@ -361,13 +409,155 @@ class DailyDuaCard extends StatelessWidget {
             PrimaryButton(
               label: tr('open'),
               icon: Icons.arrow_forward,
-              onPressed: () => Navigator.of(context).push(
+              onPressed: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(builder: (_) => DuaDetailScreen(dua: dua)),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+// ---------------- Daily Hadith card (v2.0) ----------------
+
+class DailyHadithCard extends StatelessWidget {
+  final Hadith hadith;
+  const DailyHadithCard({super.key, required this.hadith});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppState.instance;
+    final bn = state.isBangla;
+    final meaning = bn ? hadith.banglaMeaning : hadith.english;
+    final fav =
+        state.favoriteHadiths.contains('${hadith.collection}|${hadith.number}');
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('${hadith.collection} ${hadith.number}',
+                      style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w800)),
+                ),
+                TonalIconButton(
+                  icon: fav ? Icons.favorite : Icons.favorite_border,
+                  filled: fav,
+                  tooltip: tr('favorite'),
+                  onPressed: () => state.toggleFavoriteHadith(
+                      '${hadith.collection}|${hadith.number}'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(hadith.arabic,
+                textAlign: TextAlign.right,
+                textDirection: TextDirection.rtl,
+                style:
+                    TextStyle(fontSize: state.arabicSize, height: 1.9)),
+            const SizedBox(height: 12),
+            Text(meaning, style: const TextStyle(fontSize: 15, height: 1.6)),
+            const SizedBox(height: 4),
+            Text('${tr('narrated_by')} ${hadith.narrator} · ${hadith.grade}',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 16),
+            CopyShareRow(
+              onCopy: () => copyText(
+                  context,
+                  '${hadith.arabic}\n$meaning\n(${hadith.collection} ${hadith.number})',
+                  tr('hadith_word')),
+              onShare: () => shareText(
+                  context,
+                  '${hadith.arabic}\n$meaning\n(${hadith.collection} ${hadith.number})'),
+            ),
+            const SizedBox(height: 8),
+            PrimaryButton(
+              label: tr('open'),
+              icon: Icons.arrow_forward,
+              onPressed: () => Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(
+                    builder: (_) => HadithDetailScreen(hadith: hadith)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------- Khatam progress card (v2.0) ----------------
+
+class KhatamProgressCard extends StatelessWidget {
+  const KhatamProgressCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppState.instance;
+    return ListenableBuilder(
+      listenable: state,
+      builder: (context, _) {
+        final bn = state.isBangla;
+        final read = state.khatamReadAyahs();
+        final progress = read / totalQuranAyahs;
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.checklist, color: primaryGreen),
+                    const SizedBox(width: 8),
+                    Text(tr('khatam'),
+                        style: const TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w800)),
+                    const Spacer(),
+                    Text('${(progress * 100).toStringAsFixed(1)}%',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: primaryGreen)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 10,
+                    backgroundColor: primaryGreen.withOpacity(0.15),
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(primaryGreen),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                    '$read / $totalQuranAyahs ${bn ? 'আয়াত পড়া হয়েছে' : 'ayahs read'}',
+                    style: const TextStyle(color: Colors.grey)),
+                const SizedBox(height: 12),
+                TonalButton(
+                  label: bn ? 'খতম ট্র্যাকার খুলুন' : 'Open Khatam Tracker',
+                  icon: Icons.arrow_forward,
+                  onPressed: () =>
+                      Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute(
+                        builder: (_) => const KhatamScreen()),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
