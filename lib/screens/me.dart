@@ -13,11 +13,13 @@ import '../data/tasbih.dart';
 import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/azan_service.dart';
+import '../services/navigation.dart';
 import '../services/prayer.dart';
 import '../services/quran_service.dart';
 import '../services/strings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/dark_ui.dart';
 import 'content.dart';
 import 'khatam.dart';
 import 'quran.dart';
@@ -32,48 +34,86 @@ class MeScreen extends StatelessWidget {
       listenable: state,
       builder: (context, _) {
         final bn = state.isBangla;
-        final khatamPct =
-            (state.khatamReadAyahs() / totalQuranAyahs * 100);
+        final khatamPct = (state.khatamReadAyahs() / totalQuranAyahs * 100);
+        final readAyahs = state.khatamReadAyahs();
+        final weekPrayed =
+            state.last7PrayerCounts().fold<int>(0, (a, e) => a + e.count);
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
-            // Profile header (reference layout): green gradient card.
-            Container(
-              decoration: greenHeroDecoration(),
-              padding: const EdgeInsets.all(20),
+            // Page header: title + subtitle + settings gear.
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(tr('profile'),
+                          style: const TextStyle(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
+                              color: v33Text)),
+                      const SizedBox(height: 1),
+                      Text(tr('profile_sub'),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF9DB8AD))),
+                    ],
+                  ),
+                ),
+                V33RoundButton(
+                  icon: Icons.settings_outlined,
+                  onTap: () =>
+                      Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute(
+                        builder: (_) => const SettingsScreen()),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            // Profile card: avatar initial + name + city + sign-in.
+            V33Card(
               child: Row(
                 children: [
                   Container(
-                    width: 60,
-                    height: 60,
+                    width: 56,
+                    height: 56,
                     decoration: const BoxDecoration(
-                      color: Colors.white,
+                      gradient: v33GoldGradient,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.person,
-                        size: 34, color: primaryGreen),
+                    alignment: Alignment.center,
+                    child: const Text('ন',
+                        style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1A1405))),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(tr('guest'),
+                        Text(tr('profile_name'),
                             style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 19,
-                                fontWeight: FontWeight.w800)),
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: v33Text)),
                         const SizedBox(height: 2),
-                        Text(tr('not_signed_in'),
-                            style: const TextStyle(color: Colors.white70)),
+                        Text(
+                          '📍 ${state.cityName}, ${bn ? 'বাংলাদেশ' : 'Bangladesh'}',
+                          style: const TextStyle(
+                              fontSize: 12.5, color: v33Muted),
+                        ),
                       ],
                     ),
                   ),
                   FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: primaryGreenDark,
-                      minimumSize: const Size(48, 44),
+                      backgroundColor: v33Gold,
+                      foregroundColor: const Color(0xFF1A1405),
+                      minimumSize: const Size(48, 40),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                     ),
                     onPressed: () => _showSignInDialog(context),
                     child: Text(tr('sign_in')),
@@ -81,22 +121,20 @@ class MeScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            // Credit Wallet card (reference layout): green, Buy pill.
-            Container(
-              decoration: greenHeroDecoration(),
-              padding: const EdgeInsets.all(20),
+            const SizedBox(height: 10),
+            // Credit Wallet gold card (real local balance).
+            V33GoldCard(
               child: Row(
                 children: [
                   Container(
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.16),
+                      color: v33Gold.withOpacity(0.18),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(Icons.stars,
-                        color: Colors.white, size: 26),
+                        color: v33Gold, size: 26),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -104,10 +142,11 @@ class MeScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(tr('credit_balance'),
-                            style: const TextStyle(color: Colors.white70)),
+                            style: const TextStyle(
+                                fontSize: 12, color: v33Muted)),
                         Text('${state.credits} ${tr('credits')}',
                             style: const TextStyle(
-                                color: Colors.white,
+                                color: v33Text,
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800)),
                       ],
@@ -115,11 +154,13 @@ class MeScreen extends StatelessWidget {
                   ),
                   FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: primaryGreenDark,
-                      minimumSize: const Size(48, 44),
+                      backgroundColor: v33Gold,
+                      foregroundColor: const Color(0xFF1A1405),
+                      minimumSize: const Size(48, 40),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                     ),
-                    onPressed: () => Navigator.of(context, rootNavigator: true).push(
+                    onPressed: () =>
+                        Navigator.of(context, rootNavigator: true).push(
                       MaterialPageRoute(
                           builder: (_) => const CreditStoreScreen()),
                     ),
@@ -129,88 +170,120 @@ class MeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            _MeTile(
-              icon: Icons.workspace_premium,
-              iconColor: goldDark,
-              title: bn ? 'প্রিমিয়াম অ্যাক্সেস' : 'Premium Access',
-              subtitle: bn
-                  ? 'প্রিমিয়াম প্যাকেজ দেখুন (ডেমো মোড)'
-                  : 'View premium packages (demo mode)',
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(
-                    builder: (_) => const CreditStoreScreen()),
+            // Premium card (honest demo wording, no "Active" badge).
+            V33Card(
+              child: _MeTile(
+                icon: Icons.workspace_premium,
+                iconColor: v33Gold,
+                title: bn ? 'প্রিমিয়াম অ্যাক্সেস' : 'Premium Access',
+                subtitle: bn
+                    ? 'প্রিমিয়াম প্যাকেজ দেখুন (ডেমো মোড)'
+                    : 'View premium packages (demo mode)',
+                onTap: () => Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(
+                      builder: (_) => const CreditStoreScreen()),
+                ),
               ),
             ),
-            _MeTile(
-              icon: Icons.bookmark,
-              title: tr('bookmarks'),
-              subtitle:
-                  '${state.bookmarks.length} ${tr('ayahs_bookmarked')}',
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(builder: (_) => const BookmarksScreen()),
+            const SizedBox(height: 10),
+            // Menu in one dark card (sign-out tile dropped: it only
+            // showed a "guest mode" snackbar; nothing real lost).
+            V33Card(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Column(
+                children: [
+                  _MeTile(
+                    icon: Icons.bookmark,
+                    title: tr('bookmarks'),
+                    subtitle:
+                        '${state.bookmarks.length} ${tr('ayahs_bookmarked')} · ${state.favoriteHadiths.length} ${tr('hadiths_count2')}',
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const BookmarksScreen()),
+                    ),
+                  ),
+                  _menuDivider(),
+                  _MeTile(
+                    icon: Icons.menu_book,
+                    title: tr('reading_progress'),
+                    subtitle: bn
+                        ? '${khatamPct.toStringAsFixed(1)}% সম্পন্ন · $readAyahs / $totalQuranAyahs আয়াত'
+                        : '${khatamPct.toStringAsFixed(1)}% done · $readAyahs / $totalQuranAyahs ayahs',
+                    progress: khatamPct / 100,
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const KhatamScreen()),
+                    ),
+                  ),
+                  _menuDivider(),
+                  _MeTile(
+                    icon: Icons.check_circle_outline,
+                    title: tr('namaz_tracker'),
+                    subtitle:
+                        '$weekPrayed / 35 ${tr('prayed')} · ${tr('this_week')}',
+                    onTap: () => goToTab(1),
+                  ),
+                  _menuDivider(),
+                  _MeTile(
+                    icon: Icons.favorite,
+                    title: tr('favorites'),
+                    subtitle:
+                        '${state.favoriteDuas.length} ${tr('duas_count')} · '
+                            '${state.favoriteHadiths.length} ${tr('hadiths_count2')}',
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const FavoritesScreen()),
+                    ),
+                  ),
+                  _menuDivider(),
+                  _MeTile(
+                    icon: Icons.receipt_long,
+                    title: tr('purchase_history'),
+                    subtitle:
+                        '${state.purchases.length} ${tr('purchases_count')}',
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const PurchaseHistoryScreen()),
+                    ),
+                  ),
+                  _menuDivider(),
+                  _MeTile(
+                    icon: Icons.settings,
+                    title: tr('settings'),
+                    subtitle: tr('settings_sub'),
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const SettingsScreen()),
+                    ),
+                  ),
+                  _menuDivider(),
+                  _MeTile(
+                    icon: Icons.help_outline,
+                    title: bn ? 'সাহায্য ও সহায়তা' : 'Help & Support',
+                    subtitle: bn
+                        ? 'অ্যাপ ব্যবহারের সাহায্য ও তথ্য'
+                        : 'Help using the app and info',
+                    onTap: () => _showHelpDialog(context),
+                  ),
+                  _menuDivider(),
+                  _MeTile(
+                    icon: Icons.info_outline,
+                    title: tr('about'),
+                    subtitle: '${tr('about_sub')} v3.3.0',
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const AboutScreen()),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            _MeTile(
-              icon: Icons.checklist,
-              title: tr('khatam'),
-              subtitle: bn
-                  ? '${khatamPct.toStringAsFixed(1)}% সম্পন্ন · ${state.khatamReadAyahs()} / $totalQuranAyahs আয়াত'
-                  : '${khatamPct.toStringAsFixed(1)}% done · ${state.khatamReadAyahs()} / $totalQuranAyahs ayahs',
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(builder: (_) => const KhatamScreen()),
-              ),
-            ),
-            _MeTile(
-              icon: Icons.favorite,
-              title: tr('favorites'),
-              subtitle: '${state.favoriteDuas.length} ${tr('duas_count')} · '
-                  '${state.favoriteHadiths.length} ${tr('hadiths_count2')}',
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(builder: (_) => const FavoritesScreen()),
-              ),
-            ),
-            _MeTile(
-              icon: Icons.receipt_long,
-              title: tr('purchase_history'),
-              subtitle:
-                  '${state.purchases.length} ${tr('purchases_count')}',
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(
-                    builder: (_) => const PurchaseHistoryScreen()),
-              ),
-            ),
-            _MeTile(
-              icon: Icons.settings,
-              title: tr('settings'),
-              subtitle: tr('settings_sub'),
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              ),
-            ),
-            _MeTile(
-              icon: Icons.help_outline,
-              title: bn ? 'সাহায্য ও সহায়তা' : 'Help & Support',
-              subtitle: bn
-                  ? 'অ্যাপ ব্যবহারের সাহায্য ও তথ্য'
-                  : 'Help using the app and info',
-              onTap: () => _showHelpDialog(context),
-            ),
-            _MeTile(
-              icon: Icons.info_outline,
-              title: tr('about'),
-              subtitle: '${tr('about_sub')} v3.0.0',
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(builder: (_) => const AboutScreen()),
-              ),
-            ),
-            _MeTile(
-              icon: Icons.logout,
-              title: tr('sign_out'),
-              subtitle: tr('signed_in_as_guest'),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(tr('guest_mode_msg'))));
-              },
             ),
           ],
         );
@@ -254,38 +327,78 @@ class MeScreen extends StatelessWidget {
   }
 }
 
+/// Divider between menu rows inside a dark card.
+Widget _menuDivider() =>
+    Divider(height: 1, color: Colors.white.withOpacity(0.06));
+
 class _MeTile extends StatelessWidget {
   final IconData icon;
   final Color? iconColor;
   final String title;
   final String subtitle;
+  final double? progress;
   final VoidCallback onTap;
   const _MeTile({
     required this.icon,
     this.iconColor,
     required this.title,
     required this.subtitle,
+    this.progress,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: (iconColor ?? primaryGreen).withOpacity(0.12),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, color: iconColor ?? primaryGreen),
+    final color = iconColor ?? v33GreenLight;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.16),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: v33Text)),
+                  const SizedBox(height: 1),
+                  Text(subtitle,
+                      style:
+                          const TextStyle(fontSize: 12, color: v33Muted)),
+                  if (progress != null) ...[
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: progress!.clamp(0.0, 1.0),
+                        minHeight: 4,
+                        backgroundColor: Colors.white.withOpacity(0.12),
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(v33Gold),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: v33Muted, size: 20),
+          ],
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
       ),
     );
   }
