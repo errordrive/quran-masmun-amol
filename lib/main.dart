@@ -7,6 +7,7 @@
 // both together make it impossible for the bar to appear on a sub-screen.
 // Android back on a main tab returns to Home, then exits.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'screens/home.dart';
 import 'screens/me.dart';
 import 'screens/prayer.dart';
@@ -21,8 +22,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppState.instance.init();
   // v2.0 — azan notifications: ask permission once, then schedule
-  // today + tomorrow. After a phone restart, opening the app once
-  // re-schedules everything. Failures here must never block startup.
+  // today + tomorrow. After a phone restart the native BootReceiver
+  // runs bootReschedule() below (v3.2), so the user never has to
+  // open the app to restart azan. Failures here must never block
+  // startup.
   try {
     await AzanService.init();
     if (!AppState.instance.azanPermAsked) {
@@ -36,6 +39,24 @@ Future<void> main() async {
     await HomeWidgetService.update();
   } catch (_) {}
   runApp(const QuranAmolApp());
+}
+
+/// Background entry point run by the native BootReceiver after a phone
+/// restart (and when the clock or timezone changes): re-schedules the
+/// azan notifications with no UI at all. Runs in a background Flutter
+/// engine, so it only initialises AppState + AzanService and never
+/// calls runApp. Signals the receiver on the 'boot_reschedule'
+/// channel when done so it can release the broadcast.
+@pragma('vm:entry-point')
+Future<void> bootReschedule() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await AppState.instance.init();
+    await AzanService.scheduleAll();
+  } catch (_) {}
+  try {
+    await const MethodChannel('boot_reschedule').invokeMethod('done');
+  } catch (_) {}
 }
 
 class QuranAmolApp extends StatelessWidget {
