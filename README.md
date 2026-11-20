@@ -67,6 +67,40 @@ tasbih, a namaz tracker, and Sehri & Iftar times — **all working offline**.
   live in one table (`lib/data/islamic_events.dart`) so they are easy
   to correct later.
 
+## What's new in v3.2 (part 1 — auto azan + tasbih loop)
+
+- **Auto azan after restart** — AlarmManager alarms are wiped on
+  reboot, so v3.1's azan stayed silent until the app was opened once.
+  v3.2 adds a native `BootReceiver` (Kotlin) + the `bootReschedule`
+  Dart entrypoint in `lib/main.dart`: on `BOOT_COMPLETED` (also
+  `TIME_SET` / `TIMEZONE_CHANGED`) a background FlutterEngine
+  re-schedules today + tomorrow from the stored prefs, with no UI.
+  The Dart side signals the receiver on the `boot_reschedule`
+  MethodChannel when done (9s safety net). No new permissions —
+  `RECEIVE_BOOT_COMPLETED` was already declared. Master toggle,
+  per-prayer toggles and the sound toggle are all respected; Sunrise
+  never gets azan.
+- **Exact-alarm status + test azan (Settings → আজান নোটিফিকেশন)**
+  — a status row shows whether the system allows exact alarms
+  (Bangla explanation: without it azan may be a few minutes late)
+  with an "অনুমতি দিন" button that opens the system Alarms &
+  reminders screen; "আজান পরীক্ষা করুন" fires a test azan
+  notification ~5 seconds later using the same channel + real azan
+  sound, so sound can be verified without waiting for prayer time.
+- **Tasbih bead loop (replaces the v3.1 string)** — the beads now
+  hang on an open loop with a small empty gap at the top centre (the
+  loop's opening). Uncounted beads rest on the left half, counted
+  beads accumulate on the right half; every tap hops the next bead
+  across the gap while the rest of the string re-spreads one slot,
+  and a new round sweeps all beads back to the left around the
+  bottom (800ms staggered wave, not a jump cut). Beads are
+  3D-textured: layered radial gradients, carved grain ring, rim
+  light, specular glints, drop shadow, plus deterministic per-bead
+  tone/size/highlight variation. Targets 33/99 show one bead per
+  tap; 100/500/1000 show 33 representative beads (one moves per
+  target/33 taps). Counts, presets, targets, streak and history
+  storage are untouched — no data reset.
+
 ## What's new in v3.1
 
 - **3D tasbih (reference video)** — the counter screen's ring is
