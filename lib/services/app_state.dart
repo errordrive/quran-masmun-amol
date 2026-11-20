@@ -40,6 +40,8 @@ class AppState extends ChangeNotifier {
   // Per-prayer toggles, index 0..4 = Fajr, Dhuhr, Asr, Maghrib, Isha.
   final List<bool> azanPrayers = [true, true, true, true, true];
   bool azanPermAsked = false; // notification permission asked once
+  // Real azan sound for notifications (true = azan.mp3, false = default).
+  bool azanSoundEnabled = true;
 
   // ---- Khatam tracker (v2.0) ----
   final Set<int> readSurahs = {}; // surah numbers marked as read
@@ -83,6 +85,7 @@ class AppState extends ChangeNotifier {
     cityName = _prefs.getString('city') ?? 'Dhaka';
     azanEnabled = _prefs.getBool('azanEnabled') ?? true;
     azanPermAsked = _prefs.getBool('azanPermAsked') ?? false;
+    azanSoundEnabled = _prefs.getBool('azanSoundEnabled') ?? true;
     final azanList = _prefs.getStringList('azanPrayers');
     if (azanList != null && azanList.length == 5) {
       for (var i = 0; i < 5; i++) {
@@ -161,6 +164,7 @@ class AppState extends ChangeNotifier {
     await _prefs.setString('city', cityName);
     await _prefs.setBool('azanEnabled', azanEnabled);
     await _prefs.setBool('azanPermAsked', azanPermAsked);
+    await _prefs.setBool('azanSoundEnabled', azanSoundEnabled);
     await _prefs.setStringList('azanPrayers',
         azanPrayers.map((v) => v ? '1' : '0').toList());
     await _prefs.setStringList(
@@ -279,6 +283,14 @@ class AppState extends ChangeNotifier {
   void markAzanPermAsked() {
     azanPermAsked = true;
     _save();
+  }
+
+  /// Real azan sound on/off for azan notifications. The Settings toggle
+  /// (added by the other builder) binds to this.
+  Future<void> setAzanSoundEnabled(bool v) async {
+    azanSoundEnabled = v;
+    await _save();
+    notifyListeners();
   }
 
   // ---- Khatam tracker (v2.0) ----
