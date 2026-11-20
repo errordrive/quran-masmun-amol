@@ -1,9 +1,13 @@
-// Me tab: guest profile, credit balance, Favorites, Bookmarks,
-// Purchase History, Settings, About, Sign out — plus the Credit Store
-// and Payment page (demo mode until Play Billing is wired).
+// Me tab (v3.0 redesign, reference layout): green profile header,
+// Credit Wallet card, Premium Access row, Bookmarks, Reading Progress
+// (khatam), Settings, Help & Support — same navigation targets as
+// before, restyled. Credit Store + Payment stay demo mode until Play
+// Billing is wired. Azan toggles keep working (master + per-prayer,
+// restyled) plus the new "আজানের শব্দ" toggle (v3.0).
 import 'package:flutter/material.dart';
 import '../data/duas.dart';
 import '../data/hadith.dart';
+import '../data/surah_ayah_counts.dart';
 import '../data/surah_names_bn.dart';
 import '../data/tasbih.dart';
 import '../models/models.dart';
@@ -15,6 +19,7 @@ import '../services/strings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'content.dart';
+import 'khatam.dart';
 import 'quran.dart';
 
 class MeScreen extends StatelessWidget {
@@ -27,103 +32,113 @@ class MeScreen extends StatelessWidget {
       listenable: state,
       builder: (context, _) {
         final bn = state.isBangla;
+        final khatamPct =
+            (state.khatamReadAyahs() / totalQuranAyahs * 100);
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
-            AppTopBar(
-              onSearchTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(builder: (_) => const SearchScreen()),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Profile card (guest)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: primaryGreen.withOpacity(0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.person,
-                          size: 32, color: primaryGreen),
+            // Profile header (reference layout): green gradient card.
+            Container(
+              decoration: greenHeroDecoration(),
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(tr('guest'),
-                              style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800)),
-                          Text(tr('not_signed_in'),
-                              style: const TextStyle(color: Colors.grey)),
-                        ],
-                      ),
+                    child: const Icon(Icons.person,
+                        size: 34, color: primaryGreen),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(tr('guest'),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 2),
+                        Text(tr('not_signed_in'),
+                            style: const TextStyle(color: Colors.white70)),
+                      ],
                     ),
-                    FilledButton(
-                      onPressed: () => _showSignInDialog(context),
-                      child: Text(tr('sign_in')),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: primaryGreenDark,
+                      minimumSize: const Size(48, 44),
                     ),
-                  ],
-                ),
+                    onPressed: () => _showSignInDialog(context),
+                    child: Text(tr('sign_in')),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
-            // Credit balance card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: primaryGreen.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(Icons.stars,
-                          color: primaryGreen, size: 26),
+            // Credit Wallet card (reference layout): green, Buy pill.
+            Container(
+              decoration: greenHeroDecoration(),
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.16),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(tr('credit_balance'),
-                              style: const TextStyle(color: Colors.grey)),
-                          Text('${state.credits} ${tr('credits')}',
-                              style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800)),
-                        ],
-                      ),
+                    child: const Icon(Icons.stars,
+                        color: Colors.white, size: 26),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(tr('credit_balance'),
+                            style: const TextStyle(color: Colors.white70)),
+                        Text('${state.credits} ${tr('credits')}',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800)),
+                      ],
                     ),
-                    FilledButton(
-                      onPressed: () => Navigator.of(context, rootNavigator: true).push(
-                        MaterialPageRoute(
-                            builder: (_) => const CreditStoreScreen()),
-                      ),
-                      child: Text(tr('buy_credits')),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: primaryGreenDark,
+                      minimumSize: const Size(48, 44),
                     ),
-                  ],
-                ),
+                    onPressed: () => Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) => const CreditStoreScreen()),
+                    ),
+                    child: Text(tr('buy_credits')),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
             _MeTile(
-              icon: Icons.favorite,
-              title: tr('favorites'),
-              subtitle: '${state.favoriteDuas.length} ${tr('duas_count')} · '
-                  '${state.favoriteHadiths.length} ${tr('hadiths_count2')}',
+              icon: Icons.workspace_premium,
+              iconColor: goldDark,
+              title: bn ? 'প্রিমিয়াম অ্যাক্সেস' : 'Premium Access',
+              subtitle: bn
+                  ? 'প্রিমিয়াম প্যাকেজ দেখুন (ডেমো মোড)'
+                  : 'View premium packages (demo mode)',
               onTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                MaterialPageRoute(
+                    builder: (_) => const CreditStoreScreen()),
               ),
             ),
             _MeTile(
@@ -133,6 +148,25 @@ class MeScreen extends StatelessWidget {
                   '${state.bookmarks.length} ${tr('ayahs_bookmarked')}',
               onTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(builder: (_) => const BookmarksScreen()),
+              ),
+            ),
+            _MeTile(
+              icon: Icons.checklist,
+              title: tr('khatam'),
+              subtitle: bn
+                  ? '${khatamPct.toStringAsFixed(1)}% সম্পন্ন · ${state.khatamReadAyahs()} / $totalQuranAyahs আয়াত'
+                  : '${khatamPct.toStringAsFixed(1)}% done · ${state.khatamReadAyahs()} / $totalQuranAyahs ayahs',
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(builder: (_) => const KhatamScreen()),
+              ),
+            ),
+            _MeTile(
+              icon: Icons.favorite,
+              title: tr('favorites'),
+              subtitle: '${state.favoriteDuas.length} ${tr('duas_count')} · '
+                  '${state.favoriteHadiths.length} ${tr('hadiths_count2')}',
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(builder: (_) => const FavoritesScreen()),
               ),
             ),
             _MeTile(
@@ -154,9 +188,17 @@ class MeScreen extends StatelessWidget {
               ),
             ),
             _MeTile(
+              icon: Icons.help_outline,
+              title: bn ? 'সাহায্য ও সহায়তা' : 'Help & Support',
+              subtitle: bn
+                  ? 'অ্যাপ ব্যবহারের সাহায্য ও তথ্য'
+                  : 'Help using the app and info',
+              onTap: () => _showHelpDialog(context),
+            ),
+            _MeTile(
               icon: Icons.info_outline,
               title: tr('about'),
-              subtitle: '${tr('about_sub')} v1.1.0',
+              subtitle: '${tr('about_sub')} v3.0.0',
               onTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(builder: (_) => const AboutScreen()),
               ),
@@ -191,15 +233,36 @@ class MeScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _showHelpDialog(BuildContext context) async {
+    final bn = AppState.instance.isBangla;
+    await showDialog<void>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(bn ? 'সাহায্য ও সহায়তা' : 'Help & Support'),
+        content: Text(bn
+            ? 'নামাজের সময় আপনার ডিভাইসেই হিসাব করা হয় — ইন্টারনেট লাগে না। আজান নোটিফিকেশন চালু করতে Settings → আজান নোটিফিকেশন দেখুন। ক্রেডিট কেনাকাটা এখন ডেমো মোডে চলে; আসল পেমেন্ট এখনো চালু হয়নি। বিস্তারিত জানতে About পৃষ্ঠা দেখুন।'
+            : 'Prayer times are calculated on your device — no internet needed. To turn on azan notifications, see Settings → Azan notifications. Credit purchases are in demo mode; real payments are not live yet. See the About page for details.'),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(d).pop(),
+            child: Text(tr('ok')),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _MeTile extends StatelessWidget {
   final IconData icon;
+  final Color? iconColor;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
   const _MeTile({
     required this.icon,
+    this.iconColor,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -208,8 +271,17 @@ class _MeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: Icon(icon, color: primaryGreen),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: (iconColor ?? primaryGreen).withOpacity(0.12),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: iconColor ?? primaryGreen),
+        ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),
@@ -230,6 +302,7 @@ class SettingsScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
+        final bn = state.isBangla;
         return AppScaffold(
           appBar: AppBar(title: Text(tr('settings'))),
           body: ListView(
@@ -342,11 +415,24 @@ class SettingsScreen extends StatelessWidget {
                   AzanService.scheduleAll();
                 },
               ),
+              // v3.0: azan sound on/off (real azan audio).
+              SwitchListTile(
+                title: Text(bn ? 'আজানের শব্দ' : 'Azan sound'),
+                subtitle: Text(bn
+                    ? 'নোটিফিকেশনের সঙ্গে আজানের শব্দ বাজবে'
+                    : 'Play the azan sound with the notification'),
+                value: state.azanSoundEnabled,
+                onChanged: (v) {
+                  state.setAzanSoundEnabled(v);
+                  AzanService.scheduleAll();
+                },
+              ),
               if (state.azanEnabled)
                 for (var i = 0; i < 5; i++)
                   SwitchListTile(
-                    title: Text(prayerName(
-                        ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'][i])),
+                    title: Text(displayPrayerName(
+                        ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'][i],
+                        DateTime.now())),
                     value: state.azanPrayers[i],
                     onChanged: (v) {
                       state.setAzanPrayer(i, v);
@@ -390,25 +476,35 @@ class CreditStoreScreen extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.stars, color: primaryGreen, size: 28),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(tr('current_balance'),
-                              style: const TextStyle(color: Colors.grey)),
-                          Text('${state.credits} ${tr('credits')}',
-                              style: const TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.w800)),
-                        ],
+              Container(
+                decoration: greenHeroDecoration(),
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.16),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                    ],
-                  ),
+                      child: const Icon(Icons.stars,
+                          color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(tr('current_balance'),
+                            style: const TextStyle(color: Colors.white70)),
+                        Text('${state.credits} ${tr('credits')}',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800)),
+                      ],
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),
@@ -851,7 +947,7 @@ class AboutScreen extends StatelessWidget {
           Text(tr('app_name'),
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          const Text('Version 2.0.0 (build 4)'),
+          const Text('Version 3.0.0 (build 6)'),
           const SizedBox(height: 16),
           Text(tr('about_intro')),
           const SizedBox(height: 16),
