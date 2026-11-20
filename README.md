@@ -5,13 +5,59 @@ prayer times, the full Quran, Hadith, daily duas, masnun amol, Asmaul Husna,
 tasbih, a namaz tracker, and Sehri & Iftar times — **all working offline**.
 
 - Package: `com.nayem.quranamol`
-- Version: 3.0.0+6
+- Version: 3.3.0+9
 - Flutter 3.35 stable, Material 3, light + dark theme (follows system)
 - Deep green `#0E6E36` headers/hero cards + gold `#D9A441` accents on a warm
   off-white background; subtle gradients only on the splash screen and
   the Next Prayer hero card; 8px grid, min touch 48px
 - Dependencies: Flutter SDK + `shared_preferences`, `flutter_local_notifications`,
   `timezone`, `just_audio`, `path_provider`, `flutter_compass`, `home_widget`
+
+## What's new in v3.3
+
+Approved dark-emerald redesign (the 6 preview mockups), built on the
+v3.2 features — no feature removed, no storage key changed:
+
+- **New dark design system** (`lib/widgets/dark_ui.dart`) — background
+  `#071510`, emerald hero gradient `#0E5B3E → #083626`, gold accent
+  `#F2C96B`, cards `white 5.5%` with a `white 8%` border. The Home,
+  Namaz, Quran list, Tasbih, Hadith and Profile screens use this palette
+  as designed; the floating nav is now a dark translucent pill.
+- **Home** — location header (tap to change city), real Quran search,
+  Hijri (Arabic month name) + Gregorian date chips, Next Prayer hero
+  with a code-drawn mosque silhouette, live HH:MM:SS countdown,
+  day-progress bar and a real "আজান চালু আছে" pill, the full 6-row
+  prayer list (bell + prayed checkbox, next prayer highlighted +
+  "পরবর্তী" tag), 6 quick actions, a compact daily-hadith gold card,
+  and an "আরও" section (Azkar, Asmaul Husna, Khatam, Knowledge,
+  Prophet Stories, Events, Fasting). Jumu'ah Friday card kept. The old
+  3-col category grid is gone — its entries live in the quick actions
+  and "আরও".
+- **Namaz** — same hero + full list, Sehri & Iftar gold card (Sehri =
+  Fajr, Iftar = Maghrib, with Iftar countdown), Monthly Calendar +
+  Qibla buttons, Namaz tracker, method/Asr settings and the times note.
+- **Quran list** — continue-reading card (real last surah/ayah +
+  progress), filter chips (সবগুলো / মক্কী / মাদানী / বুকমার্ক / পারা —
+  পারা switches to the Juz list), dark surah rows (Bangla name, Arabic
+  name, ayah count, মক্কী/মাদানী, gold bookmark when any ayah is
+  bookmarked). The reader itself is unchanged.
+- **Tasbih** — layout aligned to the preview (dhikr card with gold
+  Arabic + prev | N/M | next row inside the card, preset chips,
+  counter X/target + Rounds below the bead stage, target chips, tap
+  hint). The v3.2 `BeadStringPainter` and slide logic are untouched.
+- **Hadith** — collection chips (6 real collections, Bangla short
+  names), a main hadith card (Arabic + Bangla + source/number + grade)
+  with prev/next, the "আজকের হাদিস" gold card, a real stats strip
+  (collections • hadiths • bookmarks) and an "আরও" list of the
+  collection's other hadiths.
+- **Profile** — header with settings gear, profile card (gold avatar
+  initial "ন", name, city, sign-in button), Credit Wallet gold card
+  (real local balance + Buy → store, demo mode unchanged), premium card
+  (honest demo wording, no "Active" badge), and one dark menu card:
+  Bookmarks, Reading Progress (real khatam % + progress bar),
+  Namaz Tracker (last-7-days total / 35), Favorites, Purchase
+  History, Settings, Help & Support, About (v3.3.0). The sign-out
+  tile is gone — it only showed a "guest mode" snackbar.
 
 ## What's new in v2.0
 
