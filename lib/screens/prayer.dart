@@ -3,11 +3,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/app_state.dart';
+import '../services/azan_service.dart';
 import '../services/prayer.dart';
 import '../services/strings.dart';
+import '../services/widget_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'content.dart';
+import 'qibla.dart';
 
 class PrayerScreen extends StatefulWidget {
   const PrayerScreen({super.key});
@@ -57,7 +60,7 @@ class _PrayerScreenState extends State<PrayerScreen> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
             AppTopBar(
-              onSearchTap: () => Navigator.of(context).push(
+              onSearchTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(builder: (_) => const SearchScreen()),
               ),
             ),
@@ -296,6 +299,17 @@ class _PrayerScreenState extends State<PrayerScreen> {
             SizedBox(
               width: double.infinity,
               child: TonalButton(
+                label: tr('qibla'),
+                icon: Icons.explore,
+                onPressed: () => Navigator.of(context, rootNavigator: true).push(
+                  MaterialPageRoute(builder: (_) => const QiblaScreen()),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: TonalButton(
                 label:
                     '${tr('method_label')}: ${state.prayerMethod.label} · ${tr('asr_hanafi').split(':').first} ${state.asrHanafi ? 'Hanafi' : 'Standard'}',
                 icon: Icons.settings,
@@ -377,6 +391,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
                         onChanged: (v) {
                           if (v != null) {
                             state.setPrayerMethod(v);
+                            AzanService.scheduleAll();
+                            HomeWidgetService.update();
                             setSheetState(() {});
                           }
                         },
@@ -388,6 +404,8 @@ class _PrayerScreenState extends State<PrayerScreen> {
                       value: state.asrHanafi,
                       onChanged: (v) {
                         state.setAsrHanafi(v);
+                        AzanService.scheduleAll();
+                        HomeWidgetService.update();
                         setSheetState(() {});
                       },
                     ),
