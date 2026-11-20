@@ -2,6 +2,8 @@
 // No network, no native plugins. Method angles follow the standard tables.
 import 'dart:math';
 
+import 'strings.dart';
+
 enum PrayerMethod { karachi, mwl, isna, egypt, ummAlQura }
 
 extension PrayerMethodInfo on PrayerMethod {
@@ -242,6 +244,38 @@ const List<String> hijriMonthNames = [
 String hijriDateString(DateTime date) {
   final h = hijriFromGregorian(date);
   return '${h.day} ${hijriMonthNames[h.month - 1]} ${h.year} AH (approx.)';
+}
+
+/// Hijri month names in Arabic script, index 0 = Muharram.
+const List<String> hijriMonthNamesArabic = [
+  'محرم',
+  'صفر',
+  'ربيع الأول',
+  'ربيع الثاني',
+  'جمادى الأولى',
+  'جمادى الآخرة',
+  'رجب',
+  'شعبان',
+  'رمضان',
+  'شوال',
+  'ذو القعدة',
+  'ذو الحجة',
+];
+
+/// Hijri date with the Arabic month name, e.g. "17 جمادى الأولى 1447".
+String hijriDateStringArabic(DateTime date) {
+  final h = hijriFromGregorian(date);
+  return '${h.day} ${hijriMonthNamesArabic[h.month - 1]} ${h.year}';
+}
+
+/// Display name for a prayer on a given [date]: 'জুম'আ' when the prayer
+/// is Dhuhr on a Friday, otherwise [prayerName] (Bangla in Bangla mode,
+/// English otherwise). The azan for that slot still fires at Dhuhr time.
+String displayPrayerName(String english, DateTime date) {
+  if (english == 'Dhuhr' && date.weekday == DateTime.friday) {
+    return 'জুম\'আ';
+  }
+  return prayerName(english);
 }
 
 // ---------------- Formatting helpers (no intl dependency) ----------------
