@@ -16,6 +16,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'app_state.dart';
 import 'prayer.dart';
+import 'strings.dart';
 
 class AzanService {
   static final FlutterLocalNotificationsPlugin _plugin =
