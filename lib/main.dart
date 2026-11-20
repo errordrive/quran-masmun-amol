@@ -53,11 +53,168 @@ class QuranAmolApp extends StatelessWidget {
           darkTheme: darkTheme(),
           themeMode: AppState.instance.themeMode,
           navigatorObservers: [routeObserver],
-          home: const MainShell(),
+          home: const SplashScreen(),
         );
       },
     );
   }
+}
+
+// ---------------- Splash screen (v3.0) ----------------
+
+/// Brief green splash (reference layout): gradient + star pattern,
+/// crescent + mosque silhouette drawn with shapes only (no image
+/// assets), hanging lanterns, app name, tagline, "Loading..." — then
+/// straight to the main shell. Shows ~1.8s; all init already ran in
+/// main() before runApp, so nothing here blocks startup.
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 1800), () {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(gradient: splashGradient),
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: CustomPaint(
+                painter: _SplashStarPainter(),
+              ),
+            ),
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 220,
+              child: CustomPaint(
+                painter: MosqueSilhouettePainter(color: Colors.white),
+              ),
+            ),
+            SafeArea(
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      SizedBox(width: 64, child: HangingLantern()),
+                      SizedBox(width: 64, child: HangingLantern()),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: 72,
+                    height: 72,
+                    child: CustomPaint(
+                      painter: CrescentPainter(
+                          color: goldAccent.withOpacity(0.95)),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  const Text(
+                    'Quran &',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 40,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1),
+                    textAlign: TextAlign.center,
+                  ),
+                  const Text(
+                    'Masnun Amol',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 40,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Read • Learn • Practice',
+                    style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.menu_book,
+                      size: 56, color: Colors.white),
+                  const SizedBox(height: 16),
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.5, color: Colors.white),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Loading...',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  const SizedBox(height: 48),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Faint white stars for the splash (same 8-point-star motif, white).
+class _SplashStarPainter extends CustomPainter {
+  const _SplashStarPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.07)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    const tile = 76.0;
+    const r = 13.0;
+    final rows = (size.height / tile).ceil() + 1;
+    final cols = (size.width / tile).ceil() + 1;
+    for (var row = 0; row < rows; row++) {
+      for (var col = 0; col < cols; col++) {
+        final cx = col * tile + (row.isOdd ? tile / 2 : 0);
+        final cy = row * tile;
+        canvas.drawRect(
+            Rect.fromCenter(
+                center: Offset(cx, cy), width: r * 2, height: r * 2),
+            paint);
+        final diag = r * 1.41421356;
+        final p2 = Path()
+          ..moveTo(cx, cy - diag)
+          ..lineTo(cx + diag, cy)
+          ..lineTo(cx, cy + diag)
+          ..lineTo(cx - diag, cy)
+          ..close();
+        canvas.drawPath(p2, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SplashStarPainter old) => false;
 }
 
 class MainShell extends StatefulWidget {
