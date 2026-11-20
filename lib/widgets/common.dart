@@ -10,6 +10,7 @@ import '../services/azan_service.dart';
 import '../services/navigation.dart';
 import '../services/prayer.dart';
 import '../services/strings.dart';
+import '../screens/city_select.dart';
 import '../services/widget_service.dart';
 import '../theme.dart';
 
@@ -556,95 +557,12 @@ class AppTopBar extends StatelessWidget {
   }
 }
 
+/// Opens the full "Select City" screen (v3.1): search, current
+/// location, popular cities, alphabetical list + A–Z rail.
+/// Kept as a function so the Home/Prayer call sites are unchanged.
 Future<void> showLocationPicker(BuildContext context) async {
-  final state = AppState.instance;
-  String query = '';
-  await showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
-    builder: (sheetContext) {
-      return StatefulBuilder(
-        builder: (context, setSheetState) {
-          final filtered = cities.where((c) {
-            final q = query.trim().toLowerCase();
-            if (q.isEmpty) return true;
-            return c.name.toLowerCase().contains(q) ||
-                c.country.toLowerCase().contains(q);
-          }).toList();
-          return SafeArea(
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(tr('choose_location'),
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 4),
-                  Text(tr('location_sub')),
-                  const SizedBox(height: 12),
-                  TextField(
-                    decoration: InputDecoration(
-                      hintText: tr('search_city'),
-                      prefixIcon: const Icon(Icons.search),
-                    ),
-                    onChanged: (v) => setSheetState(() => query = v),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 360,
-                    child: filtered.isEmpty
-                        ? EmptyState(
-                            icon: Icons.location_off,
-                            title: tr('no_city_found'),
-                            subtitle: tr('try_spelling'),
-                          )
-                        : ListView.builder(
-                            itemCount: filtered.length,
-                            itemBuilder: (context, i) {
-                              final c = filtered[i];
-                              final selected = c.name == state.cityName;
-                              return ListTile(
-                                leading: const Icon(Icons.location_on,
-                                    color: primaryGreen),
-                                title: Text(c.name),
-                                subtitle: Text(c.country),
-                                trailing: selected
-                                    ? const Icon(Icons.check,
-                                        color: primaryGreen)
-                                    : null,
-                                onTap: () {
-                                  state.setCity(c.name);
-                                  // City drives prayer times, azan and widget.
-                                  AzanService.scheduleAll();
-                                  HomeWidgetService.update();
-                                  Navigator.of(sheetContext).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content: Text(
-                                            '${tr('location_set_to')} ${c.name}')),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    },
+  await Navigator.of(context, rootNavigator: true).push(
+    MaterialPageRoute(builder: (_) => const CitySelectScreen()),
   );
 }
 
@@ -886,6 +804,17 @@ class PrayerStrip extends StatelessWidget {
                                   .onSurfaceVariant,
                         ),
                         textAlign: TextAlign.center,
+                      ),
+                      // Green check when prayed today (v3.1); Sunrise
+                      // has no mark, so the slot stays empty.
+                      SizedBox(
+                        height: 16,
+                        child: prayerIndexFor(name) >= 0 &&
+                                state.isPrayerMarked(
+                                    date, prayerIndexFor(name))
+                            ? const Icon(Icons.check_circle,
+                                size: 15, color: primaryGreen)
+                            : null,
                       ),
                     ],
                   ),
