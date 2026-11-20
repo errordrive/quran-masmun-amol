@@ -724,7 +724,7 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen>
     if (_index < 0) _index = 0;
     _slideCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 400),
       value: 1,
     );
     _slideAnim =
@@ -766,8 +766,20 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen>
         HapticFeedback.lightImpact();
       }
     }
-    // Slide the bead string one bead along the thread.
-    _slideCtrl.forward(from: 0);
+    // v3.2: slide the bead loop only when a bead actually moves.
+    // Targets 100/500/1000 use 33 representative beads, so a bead
+    // moves only every target/33 taps; other taps count without
+    // motion. A new round sweeps the beads back to the left (slower);
+    // a normal tap hops one bead across the gap (~400ms).
+    final before = beadProgress(count, _target);
+    final after = beadProgress(next, _target);
+    final beadMoved = after.beadCount != before.beadCount;
+    final isNewRound = next > 1 && next % _target == 1;
+    if (beadMoved || isNewRound) {
+      _slideCtrl.duration =
+          Duration(milliseconds: isNewRound ? 800 : 400);
+      _slideCtrl.forward(from: 0);
+    }
     _spawnFloater();
     if (reached && _celebratedFor != next) {
       _celebratedFor = next;
