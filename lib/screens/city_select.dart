@@ -8,6 +8,7 @@
 // common.dart's showLocationPicker pushes this screen.
 import 'package:flutter/material.dart';
 import '../data/cities.dart';
+import '../models/models.dart';
 import '../services/app_state.dart';
 import '../services/azan_service.dart';
 import '../services/strings.dart';
