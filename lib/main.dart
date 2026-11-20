@@ -1,5 +1,5 @@
 // Quran & Masnun Amol — entry point (v1.2).
-// ONE shell Scaffold owns the floating pill MainNavBar. The bar is built
+// ONE shell Scaffold owns the minimal floating MainNavBar. The bar is built
 // ONLY while the topmost route is a main tab: a RouteObserver flips
 // isTopLevelRoute off whenever any sub-screen is pushed (and back on when
 // it pops), AND every sub-screen is pushed on the root navigator, so it
