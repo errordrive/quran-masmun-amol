@@ -8,6 +8,7 @@ import '../data/cities.dart';
 import '../services/app_state.dart';
 import '../services/azan_service.dart';
 import '../services/navigation.dart';
+import '../services/prayer.dart';
 import '../services/strings.dart';
 import '../services/widget_service.dart';
 import '../theme.dart';
@@ -645,4 +646,448 @@ Future<void> showLocationPicker(BuildContext context) async {
       );
     },
   );
+}
+
+// ---------------- v3.0 redesign: shared hero / strip / tiles ----------------
+
+/// Compact countdown for hero cards: "2h 12m left" (not HH:MM:SS).
+String formatCountdownShort(Duration d) {
+  if (d.isNegative) d = Duration.zero;
+  final h = d.inHours;
+  final m = d.inMinutes % 60;
+  final bn = AppState.instance.isBangla;
+  if (h > 0) {
+    return bn ? '$hঘ ${m}মি বাকি' : '$h h ${m}m left';
+  }
+  final s = d.inSeconds % 60;
+  return bn ? '${m}মি ${s}সে বাকি' : '$m m ${s}s left';
+}
+
+/// Icon per prayer (used by the strip, the Prayer list and the calendar).
+IconData prayerIcon(String english) {
+  switch (english) {
+    case 'Fajr':
+      return Icons.mosque;
+    case 'Sunrise':
+      return Icons.wb_sunny;
+    case 'Dhuhr':
+      return Icons.mosque;
+    case 'Asr':
+      return Icons.wb_twilight;
+    case 'Maghrib':
+      return Icons.nights_stay;
+    case 'Isha':
+      return Icons.nightlight_round;
+    default:
+      return Icons.access_time;
+  }
+}
+
+/// Green gradient hero decoration (splash + Next Prayer hero only),
+/// with a soft shadow so the card lifts off the white content area.
+BoxDecoration greenHeroDecoration({double radius = 20}) {
+  return BoxDecoration(
+    gradient: heroGreenGradient,
+    borderRadius: BorderRadius.circular(radius),
+    boxShadow: [
+      BoxShadow(
+        color: deepGreen.withOpacity(0.25),
+        blurRadius: 16,
+        offset: const Offset(0, 6),
+      ),
+    ],
+  );
+}
+
+/// Next Prayer hero card (v3.0, reference layout): deep-green gradient,
+/// faint star pattern + a large mosque icon, "Next Prayer" label, the
+/// prayer name (via displayPrayerName — Jumu'ah on Fridays), the time
+/// in gold, and the countdown. Tapping opens the Prayer tab.
+class NextPrayerHero extends StatelessWidget {
+  final String prayerEnglish;
+  final DateTime prayerDate;
+  final DateTime time;
+  final Duration countdown;
+  final String cityName;
+  final VoidCallback? onTap;
+  const NextPrayerHero({
+    super.key,
+    required this.prayerEnglish,
+    required this.prayerDate,
+    required this.time,
+    required this.countdown,
+    required this.cityName,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppState.instance;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final card = Container(
+      decoration: greenHeroDecoration(),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: CustomPaint(
+                painter: _StarPatternPainter(dark: true),
+              ),
+            ),
+          ),
+          const Positioned(
+            right: 8,
+            bottom: 4,
+            child: Icon(Icons.mosque, size: 96, color: Colors.white12),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.access_time,
+                        size: 18, color: Colors.white70),
+                    const SizedBox(width: 6),
+                    Text(
+                      tr('next_prayer'),
+                      style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    const Spacer(),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on,
+                            size: 16, color: Colors.white70),
+                        const SizedBox(width: 2),
+                        Text(cityName,
+                            style: const TextStyle(color: Colors.white70)),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  displayPrayerName(prayerEnglish, prayerDate),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  formatTime(time, use24h: state.use24h),
+                  style: const TextStyle(
+                      color: goldAccent,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    formatCountdownShort(countdown),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (onTap == null) return card;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: card,
+    );
+  }
+}
+
+/// Prayer strip (v3.0, reference layout): one row of all 6 prayers with
+/// icon + Bangla name (via displayPrayerName) + time; the next prayer
+/// is highlighted in green. Tapping opens the Prayer tab.
+class PrayerStrip extends StatelessWidget {
+  final DayPrayerTimes times;
+  final String nextEnglish;
+  final DateTime date;
+  final VoidCallback? onTap;
+  const PrayerStrip({
+    super.key,
+    required this.times,
+    required this.nextEnglish,
+    required this.date,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final state = AppState.instance;
+    final strip = Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        child: Row(
+          children: [
+            for (final (name, time) in times.ordered)
+              Expanded(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: name == nextEnglish
+                        ? primaryGreen.withOpacity(0.12)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(prayerIcon(name),
+                          size: 22,
+                          color: name == nextEnglish
+                              ? primaryGreen
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
+                      const SizedBox(height: 4),
+                      Text(
+                        displayPrayerName(name, date),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: name == nextEnglish
+                              ? FontWeight.w800
+                              : FontWeight.w600,
+                          color: name == nextEnglish ? primaryGreen : null,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        formatTime(time, use24h: state.use24h),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: name == nextEnglish
+                              ? primaryGreen
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (onTap == null) return strip;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: strip,
+    );
+  }
+}
+
+/// Vertical category tile (v3.0, reference layout): icon in a green
+/// tinted rounded square, label underneath. Optional [badge] (e.g. "99"
+/// for Asmaul Husna) shows as a small gold circle at the icon corner.
+class CategoryTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final String? badge;
+  const CategoryTile({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.badge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: primaryGreen.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(icon, color: primaryGreen, size: 26),
+                  ),
+                  if (badge != null)
+                    Positioned(
+                      right: -6,
+                      top: -6,
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: goldAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          badge!,
+                          style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700, height: 1.3),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Simple mosque silhouette (domes + minarets) drawn with shapes only —
+/// no image assets. Used on the splash screen (white, low opacity).
+class MosqueSilhouettePainter extends CustomPainter {
+  final Color color;
+  const MosqueSilhouettePainter({this.color = Colors.white});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withOpacity(0.16)
+      ..style = PaintingStyle.fill;
+    final baseY = size.height * 0.86;
+    // Ground band.
+    canvas.drawRect(
+        Rect.fromLTWH(0, baseY, size.width, size.height - baseY), paint);
+    // Central dome (upper half-circle).
+    final cx = size.width / 2;
+    final domeR = size.width * 0.17;
+    canvas.drawArc(
+        Rect.fromCircle(center: Offset(cx, baseY), radius: domeR),
+        3.14159265,
+        3.14159265,
+        true,
+        paint);
+    // Finial above the dome.
+    canvas.drawCircle(Offset(cx, baseY - domeR - 10), 4, paint);
+    canvas.drawRect(
+        Rect.fromCenter(
+            center: Offset(cx, baseY - domeR - 4), width: 3, height: 12),
+        paint);
+    // Side domes.
+    for (final dx in [-0.26, 0.26]) {
+      final sx = cx + dx * size.width;
+      final r = size.width * 0.09;
+      canvas.drawArc(Rect.fromCircle(center: Offset(sx, baseY), radius: r),
+          3.14159265, 3.14159265, true, paint);
+    }
+    // Minarets.
+    for (final mx in [size.width * 0.06, size.width * 0.94]) {
+      final w = size.width * 0.045;
+      final top = size.height * 0.42;
+      canvas.drawRect(Rect.fromLTWH(mx - w / 2, top, w, baseY - top), paint);
+      canvas.drawArc(
+          Rect.fromCircle(center: Offset(mx, top), radius: w * 0.9),
+          3.14159265,
+          3.14159265,
+          true,
+          paint);
+      canvas.drawCircle(Offset(mx, top - w * 0.9 - 4), 3, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(MosqueSilhouettePainter old) => old.color != color;
+}
+
+/// Crescent moon drawn with two circles (difference) — no image asset.
+class CrescentPainter extends CustomPainter {
+  final Color color;
+  const CrescentPainter({this.color = Colors.white});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final r = size.width / 2;
+    final outer = Path()
+      ..addOval(Rect.fromCircle(center: Offset(r, r), radius: r));
+    final inner = Path()
+      ..addOval(Rect.fromCircle(
+          center: Offset(r * 1.35, r * 0.82), radius: r * 0.92));
+    canvas.drawPath(
+        Path.combine(PathOperation.difference, outer, inner), paint);
+  }
+
+  @override
+  bool shouldRepaint(CrescentPainter old) => old.color != color;
+}
+
+/// Small hanging lantern (line + amber glow + star) for the splash.
+class HangingLantern extends StatelessWidget {
+  const HangingLantern({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 2, height: 44, color: Colors.white.withOpacity(0.5)),
+        Container(
+          width: 34,
+          height: 44,
+          decoration: BoxDecoration(
+            color: amberAccent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: amberAccent.withOpacity(0.55),
+                blurRadius: 18,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.star, size: 18, color: Colors.white),
+        ),
+      ],
+    );
+  }
 }
