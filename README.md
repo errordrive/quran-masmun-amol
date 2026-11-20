@@ -5,10 +5,80 @@ prayer times, the full Quran, Hadith, daily duas, masnun amol, Asmaul Husna,
 tasbih, a namaz tracker, and Sehri & Iftar times — **all working offline**.
 
 - Package: `com.nayem.quranamol`
-- Version: 1.1.0+2
+- Version: 2.0.0+4
 - Flutter 3.35 stable, Material 3, light + dark theme (follows system)
 - Primary green `#15803D`, no gradients, no heavy shadows, 8px grid, min touch 48px
-- Dependencies: Flutter SDK + `shared_preferences` only
+- Dependencies: Flutter SDK + `shared_preferences`, `flutter_local_notifications`,
+  `timezone`, `just_audio`, `path_provider`, `flutter_compass`, `home_widget`
+
+## What's new in v2.0
+
+- **Azan notifications** — a local notification at each of the 5 prayer
+  times (Fajr, Dhuhr, Asr, Maghrib, Isha), scheduled on-device from the
+  app's own prayer-time calculation (selected city + method). Master
+  on/off + per-prayer toggles in Settings → আজান নোটিফিকেশন. Default
+  notification sound only — **no azan audio is bundled or downloaded**
+  (licensing risk). Android 13+ notification permission is asked once on
+  first run; if exact alarms are denied, scheduling falls back to
+  inexact mode instead of crashing. Today + tomorrow are scheduled on
+  app start and whenever city/method/azan settings change; after a phone
+  restart, opening the app once re-schedules everything.
+- **Audio tilawat (streaming, NOT bundled)** — the Quran reader has a
+  player bar: play/pause/stop for the current surah, ayah-by-ayah
+  auto-advance with the playing ayah highlighted, and "এই আয়াত থেকে
+  তিলাওয়াত শুনুন" from any ayah's action sheet. Reciter: Mishary Rashid
+  Alafasy. Audio streams per-ayah MP3s from the Islamic Network CDN
+  (`cdn.islamic.network/quran/audio/64/ar.alafasy/001001.mp3` …) — the
+  APK stays small because **no audio is bundled**. A per-surah download
+  button saves that surah's MP3s into the app documents folder for
+  offline playback (with progress + delete); the whole Quran is never
+  downloaded at once. No internet → a clear "ইন্টারনেট লাগবে" message.
+- **Qibla compass** — reachable from Home and the Prayer tab. Bearing +
+  distance to the Kaaba are computed in pure Dart from the selected
+  city's coordinates; the live heading comes from the device compass
+  sensor (`flutter_compass`). Rotating dial with a Kaaba marker, turn
+  left/right guidance, and an "aligned" state. Devices without a compass
+  sensor still show the bearing, direction and distance with a static
+  dial and a clear message.
+- **Home widget (Android)** — a home-screen widget showing the next
+  prayer name, time and countdown (native `PrayerWidgetProvider` +
+  `prayer_widget.xml`, data pushed from Flutter via `home_widget` on
+  app start / city change; the system also refreshes it every 30 min).
+  The countdown text is as fresh as the last app open.
+- **আজকের হাদিস** — a Home card picking one hadith per day with the
+  same date-seeded random as the daily dua (same hadith all day,
+  different each day), from the bundled 48 hadiths, fully offline.
+  Tapping opens the hadith detail screen.
+- **খতম ট্র্যাকার** — mark whole surahs as read; total ayahs read /
+  6,236 with a progress bar, a daily ayah goal (10/20/50/100) and an
+  estimated completion date. All stored locally. A progress card on
+  Home shows the same.
+- **ইসলামিক ইভেন্ট ক্যালেন্ডার** — upcoming events (রমজান শুরু, ঈদুল
+  ফিতর, ঈদুল আজহা, শবে বরাত, শবে কদর, আশুরা, শবে মেরাজ, ঈদে
+  মিলাদুন্নবী) for 2026–2028 with a days-remaining countdown for the
+  next event. Every date is labelled **"চাঁদ দেখা সাপেক্ষে"** — Hijri
+  dates depend on moon sighting and are never presented as exact. Dates
+  live in one table (`lib/data/islamic_events.dart`) so they are easy
+  to correct later.
+
+## What's new in v1.2
+
+- **Bottom bar can never appear on a sub-screen** — two independent
+  guarantees: (1) the shell owns ONE floating pill bar and a RouteObserver
+  hides it whenever any route is pushed above the main tabs (it reappears
+  on back); (2) all 32 sub-screen pushes use
+  `Navigator.of(context, rootNavigator: true)`, so every sub-screen covers
+  the shell completely. The bar lives only on Home / Prayer / Me.
+- **Tighter floating bar** — the empty space below the pill is now 8px
+  (was 16px), so the bar reads as properly floating over the content.
+- **Category tiles never clip** — label font 15sp → 13sp (line height
+  1.35), icon 48px → 44px, grid tiles taller (aspect 2.2 → 1.9), so
+  "সকাল-সন্ধ্যার আমল" and every other Bangla label shows in full.
+- **Daily Dua is random every day** — `dailyDua()` now draws with a
+  date-seeded `Random(year * 372 + month * 31 + day)`: same dua all day,
+  a different random-feeling one each day, never sequential, fully offline.
+- **Safe bottom padding** — all detail/list screens now end with 32px of
+  bottom padding, so no content can hide behind any bottom UI.
 
 ## What's new in v1.1
 
