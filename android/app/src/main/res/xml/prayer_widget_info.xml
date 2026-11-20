@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v2.0: home-screen widget configuration. The system refreshes the
+     widget at most every 30 minutes (updatePeriodMillis); the countdown
+     text is as fresh as the last app open. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/prayer_widget"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen" />
