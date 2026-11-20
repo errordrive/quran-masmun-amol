@@ -16,6 +16,7 @@ import '../services/strings.dart';
 import '../theme.dart';
 import '../widgets/bead_string.dart';
 import '../widgets/common.dart';
+import '../widgets/dark_ui.dart';
 import 'quran.dart';
 
 // ---------------- Dua category list + detail ----------------
@@ -137,41 +138,327 @@ class DuaDetailScreen extends StatelessWidget {
 
 // ---------------- Hadith ----------------
 
-class HadithCollectionScreen extends StatelessWidget {
+class HadithCollectionScreen extends StatefulWidget {
   const HadithCollectionScreen({super.key});
+  @override
+  State<HadithCollectionScreen> createState() =>
+      _HadithCollectionScreenState();
+}
+
+/// Bangla short names for the 6 collections (display labels only;
+/// the underlying data keeps the English collection names).
+const Map<String, String> _collectionBnNames = {
+  'Sahih al-Bukhari': 'সহীহ বুখারী',
+  'Sahih Muslim': 'সহীহ মুসলিম',
+  'Sunan Abu Dawud': 'আবু দাউদ',
+  'Jami at-Tirmidhi': 'তিরমিজি',
+  "Sunan an-Nasa'i": 'নাসাঈ',
+  'Sunan Ibn Majah': 'ইবনে মাজাহ',
+};
+
+class _HadithCollectionScreenState extends State<HadithCollectionScreen> {
+  int _collectionIdx = 0;
+  int _hadithIdx = 0;
+
+  String get _collection => hadithCollections[_collectionIdx];
+  List<Hadith> get _list => hadithsByCollection(_collection);
+  Hadith get _hadith => _list[_hadithIdx.clamp(0, _list.length - 1)];
+
+  void _selectCollection(int i) {
+    setState(() {
+      _collectionIdx = i;
+      _hadithIdx = 0;
+    });
+  }
+
+  void _stepHadith(int delta) {
+    if (_list.isEmpty) return;
+    setState(() {
+      _hadithIdx = (_hadithIdx + delta) % _list.length;
+      if (_hadithIdx < 0) _hadithIdx += _list.length;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final state = AppState.instance;
+    final bn = state.isBangla;
+    final daily = state.dailyHadith(DateTime.now());
+    final list = _list;
+    final h = list.isEmpty ? null : _hadith;
     return AppScaffold(
-      appBar: AppBar(title: Text(tr('hadith'))),
-      body: ListView.builder(
-        itemCount: hadithCollections.length,
-        padding: const EdgeInsets.only(bottom: 32),
-        itemBuilder: (context, i) {
-          final name = hadithCollections[i];
-          final count = hadithsByCollection(name).length;
-          return ListTile(
-            leading: Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: primaryGreen.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
+      dark: true,
+      appBar: AppBar(
+        backgroundColor: v33Background,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tr('hadith'),
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(
+              '${hadiths.length} ${tr('hadiths_count')} • ${hadithCollections.length} ${tr('collections')}',
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
+      body: ListenableBuilder(
+        listenable: state,
+        builder: (context, _) {
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+            children: [
+              // Collection chips (6 real collections).
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (var i = 0; i < hadithCollections.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: V33Chip(
+                          label: bn
+                              ? (_collectionBnNames[hadithCollections[i]] ??
+                                  hadithCollections[i])
+                              : hadithCollections[i],
+                          active: _collectionIdx == i,
+                          onTap: () => _selectCollection(i),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-              child:
-                  const Icon(Icons.auto_stories, color: primaryGreen),
-            ),
-            title: Text(name,
-                style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Text('$count ${tr('hadiths_count')}'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context, rootNavigator: true).push(
-              MaterialPageRoute(
-                  builder: (_) => HadithListScreen(collection: name)),
-            ),
+              const SizedBox(height: 12),
+              // Main hadith card: Arabic + Bangla + source/number.
+              if (h != null)
+                V33Card(
+                  child: InkWell(
+                    onTap: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              HadithDetailScreen(hadith: h)),
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: v33Green.withOpacity(0.18),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                bn
+                                    ? (_collectionBnNames[h.collection] ??
+                                        h.collection)
+                                    : h.collection,
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: v33GreenLight),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('${tr('hadith_word')} ${h.number}',
+                                style: const TextStyle(
+                                    fontSize: 12, color: v33Muted)),
+                            const Spacer(),
+                            Text(h.grade,
+                                style: const TextStyle(
+                                    fontSize: 12, color: v33Gold)),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(h.arabic,
+                            textAlign: TextAlign.right,
+                            textDirection: TextDirection.rtl,
+                            style: const TextStyle(
+                                fontSize: 21,
+                                height: 1.9,
+                                color: Color(0xFFF2F7F4))),
+                        const SizedBox(height: 10),
+                        Text(bn ? h.banglaMeaning : h.english,
+                            style: const TextStyle(
+                                fontSize: 15,
+                                height: 1.6,
+                                color: v33Text)),
+                        const SizedBox(height: 12),
+                        Divider(
+                            height: 1,
+                            color: Colors.white.withOpacity(0.08)),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            TextButton.icon(
+                              onPressed: () => _stepHadith(-1),
+                              icon: const Icon(Icons.chevron_left,
+                                  size: 18, color: v33GreenLight),
+                              label: Text(tr('prev_hadith'),
+                                  style: const TextStyle(
+                                      color: v33GreenLight)),
+                            ),
+                            Expanded(
+                              child: Text('${_hadithIdx + 1}/${list.length}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      color: v33Muted, fontSize: 13)),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => _stepHadith(1),
+                              icon: const Icon(Icons.chevron_right,
+                                  size: 18, color: v33GreenLight),
+                              label: Text(tr('next_hadith'),
+                                  style: const TextStyle(
+                                      color: v33GreenLight)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              // "আজকের হাদিস" gold card (date-seeded, same as Home).
+              V33GoldCard(
+                child: InkWell(
+                  onTap: () =>
+                      Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            HadithDetailScreen(hadith: daily)),
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      V33GoldLabel('✦ ${tr('daily_hadith')}'),
+                      const SizedBox(height: 6),
+                      Text(bn ? daily.banglaMeaning : daily.english,
+                          maxLines: 3, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 14.5,
+                              height: 1.5,
+                              color: v33Text)),
+                      const SizedBox(height: 6),
+                      Text('${daily.collection} ${daily.number}',
+                          style: const TextStyle(
+                              fontSize: 12, color: v33Muted)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Stats strip (all real counts).
+              V33Card(
+                child: Row(
+                  children: [
+                    _stat('${hadithCollections.length}',
+                        tr('collections')),
+                    _stat('${hadiths.length}', tr('hadiths_count')),
+                    _stat('${state.favoriteHadiths.length}',
+                        tr('bookmarked')),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              V33SectionLabel(tr('more_from_collection')),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.055),
+                  borderRadius: BorderRadius.circular(18),
+                  border:
+                      Border.all(color: Colors.white.withOpacity(0.08)),
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  itemCount: list.length,
+                  separatorBuilder: (_, __) => Divider(
+                      height: 1, color: Colors.white.withOpacity(0.06)),
+                  itemBuilder: (context, i) {
+                    final item = list[i];
+                    return InkWell(
+                      onTap: () =>
+                          Navigator.of(context, rootNavigator: true).push(
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                HadithDetailScreen(hadith: item)),
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 10),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 34,
+                              height: 34,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: v33Green.withOpacity(0.16),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              child: Text('${item.number}',
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: v33GreenLight)),
+                            ),
+                            const SizedBox(width: 11),
+                            Expanded(
+                              child: Text(
+                                  bn ? item.banglaMeaning : item.english,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      height: 1.45,
+                                      color: v33Text)),
+                            ),
+                            const Icon(Icons.chevron_right,
+                                color: v33Muted, size: 20),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _stat(String value, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: v33Text)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: const TextStyle(fontSize: 11.5, color: v33Muted)),
+        ],
       ),
     );
   }
@@ -409,6 +696,18 @@ class AsmaulHusnaScreen extends StatelessWidget {
   }
 }
 
+/// Bangla display names for the default dhikr presets (display only;
+/// custom tasbihs fall back to their englishName).
+const Map<String, String> _tasbihBnNames = {
+  'subhanallah': 'সুবহানাল্লাহ',
+  'alhamdulillah': 'আলহামদুলিল্লাহ',
+  'allahu-akbar': 'আল্লাহু আকবর',
+  'la-ilaha': 'লা ইলাহা ইল্লাল্লাহ',
+  'astaghfirullah': 'আস্তাগফিরুল্লাহ',
+  'durood': 'দরুদ শরীফ',
+  'subhan-bihamdihi': 'সুবহানাল্লাহি ওয়া বিহামদিহি',
+};
+
 // ---------------- Tasbih ----------------
 
 class TasbihListScreen extends StatelessWidget {
@@ -431,16 +730,18 @@ class TasbihListScreen extends StatelessWidget {
             ? ['সোম', 'মঙ্গল', 'বুধ', 'বৃহ', 'শুক্র', 'শনি', 'রবি']
             : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         return AppScaffold(
+          dark: true,
           appBar: AppBar(
+            backgroundColor: v33Background,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            elevation: 0,
             title: Text(tr('tasbih')),
             actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: TonalIconButton(
-                  icon: Icons.add,
-                  tooltip: tr('add_custom_tasbih'),
-                  onPressed: () => _showAddCustom(context),
-                ),
+              IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: tr('add_custom_tasbih'),
+                onPressed: () => _showAddCustom(context),
               ),
             ],
           ),
@@ -449,90 +750,86 @@ class TasbihListScreen extends StatelessWidget {
               // History + streak header
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
+                child: V33Card(
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(tr('todays_total'),
+                                    style: const TextStyle(color: v33Muted)),
+                                Text('$todayTotal',
+                                    style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w800,
+                                        color: v33GreenLight)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: Colors.white.withOpacity(0.1),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(tr('daily_streak'),
+                                    style: const TextStyle(color: v33Muted)),
+                                Text(
+                                    streak == 0
+                                        ? tr('no_streak_yet')
+                                        : '$streak ${streak == 1 ? tr('day') : tr('days')}',
+                                    style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                        color: v33GreenLight)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          for (final e in last7)
                             Expanded(
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(tr('todays_total'),
-                                      style:
-                                          const TextStyle(color: Colors.grey)),
-                                  Text('$todayTotal',
+                                  Text('${e.count}',
                                       style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w800,
-                                          color: primaryGreen)),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              width: 1,
-                              height: 40,
-                              color: Theme.of(context).dividerColor,
-                            ),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(tr('daily_streak'),
-                                      style:
-                                          const TextStyle(color: Colors.grey)),
-                                  Text(
-                                      streak == 0
-                                          ? tr('no_streak_yet')
-                                          : '$streak ${streak == 1 ? tr('day') : tr('days')}',
-                                      style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w800,
-                                          color: primaryGreen)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            for (final e in last7)
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    Text('${e.count}',
-                                        style: const TextStyle(fontSize: 11)),
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      height: maxCount == 0
-                                          ? 4
-                                          : (e.count / maxCount * 48)
-                                                  .clamp(4, 48)
-                                                  .toDouble(),
-                                      margin: const EdgeInsets.symmetric(
-                                          horizontal: 4),
-                                      decoration: BoxDecoration(
-                                        color: e.count > 0
-                                            ? primaryGreen
-                                            : Theme.of(context).dividerColor,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
+                                          fontSize: 11, color: v33Sub)),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    height: maxCount == 0
+                                        ? 4
+                                        : (e.count / maxCount * 48)
+                                                .clamp(4, 48)
+                                                .toDouble(),
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 4),
+                                    decoration: BoxDecoration(
+                                      color: e.count > 0
+                                          ? v33Green
+                                          : Colors.white.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(weekdays[e.date.weekday - 1],
-                                        style: const TextStyle(
-                                            fontSize: 11, color: Colors.grey)),
-                                  ],
-                                ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(weekdays[e.date.weekday - 1],
+                                      style: const TextStyle(
+                                          fontSize: 11, color: v33Muted)),
+                                ],
                               ),
-                          ],
-                        ),
-                      ],
-                    ),
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -546,11 +843,11 @@ class TasbihListScreen extends StatelessWidget {
                       for (final t in defaultTasbihs.take(5))
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: ActionChip(
-                            avatar: const Icon(Icons.fingerprint,
-                                size: 16, color: primaryGreen),
-                            label: Text(t.englishName),
-                            onPressed: () => Navigator.of(context,
+                          child: V33Chip(
+                            label: bn
+                                ? (_tasbihBnNames[t.id] ?? t.englishName)
+                                : t.englishName,
+                            onTap: () => Navigator.of(context,
                                     rootNavigator: true)
                                 .push(MaterialPageRoute(
                                     builder: (_) => TasbihCounterScreen(
@@ -563,53 +860,98 @@ class TasbihListScreen extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Expanded(
-                child: ListView.builder(
-                  itemCount: items.length,
-                  padding: const EdgeInsets.only(bottom: 32),
-                  itemBuilder: (context, i) {
-                    final t = items[i];
-                    final count = state.tasbihCount(t.id);
-                    return ListTile(
-                      leading: Container(
-                        width: 44,
-                        height: 44,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: primaryGreen.withOpacity(0.12),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.055),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.08)),
+                    ),
+                    child: ListView.separated(
+                      itemCount: items.length,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 4),
+                      separatorBuilder: (_, __) => Divider(
+                          height: 1,
+                          color: Colors.white.withOpacity(0.06)),
+                      itemBuilder: (context, i) {
+                        final t = items[i];
+                        final count = state.tasbihCount(t.id);
+                        return InkWell(
+                          onTap: () =>
+                              Navigator.of(context, rootNavigator: true)
+                                  .push(
+                            MaterialPageRoute(
+                                builder: (_) => TasbihCounterScreen(
+                                    item: t, items: items)),
+                          ),
                           borderRadius: BorderRadius.circular(12),
-                        ),
-                        child:
-                            const Icon(Icons.fingerprint, color: primaryGreen),
-                      ),
-                      title: Text(t.englishName,
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: Text(
-                          '${tr('target')}: ${t.target} · ${tr('count')}: $count'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(t.arabicName,
-                              style: const TextStyle(
-                                  fontSize: 18, color: primaryGreen)),
-                          if (t.custom)
-                            IconButton(
-                              icon:
-                                  const Icon(Icons.delete_outline, size: 20),
-                              tooltip: tr('delete'),
-                              onPressed: () =>
-                                  state.removeCustomTasbih(t.id),
-                            )
-                          else
-                            const Icon(Icons.chevron_right),
-                        ],
-                      ),
-                      onTap: () => Navigator.of(context, rootNavigator: true).push(
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                TasbihCounterScreen(item: t, items: items)),
-                      ),
-                    );
-                  },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 10),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: v33Green.withOpacity(0.16),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(Icons.fingerprint,
+                                      color: v33GreenLight, size: 20),
+                                ),
+                                const SizedBox(width: 11),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        bn
+                                            ? (_tasbihBnNames[t.id] ??
+                                                t.englishName)
+                                            : t.englishName,
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: v33Text),
+                                      ),
+                                      const SizedBox(height: 1),
+                                      Text(
+                                          '${tr('target')}: ${t.target} · ${tr('count')}: $count',
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: v33Muted)),
+                                    ],
+                                  ),
+                                ),
+                                Text(t.arabicName,
+                                    style: const TextStyle(
+                                        fontSize: 17,
+                                        color: Color(0xFFD9EDE3))),
+                                const SizedBox(width: 4),
+                                if (t.custom)
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline,
+                                        size: 20, color: v33Muted),
+                                    tooltip: tr('delete'),
+                                    onPressed: () =>
+                                        state.removeCustomTasbih(t.id),
+                                  )
+                                else
+                                  const Icon(Icons.chevron_right,
+                                      color: v33Muted, size: 20),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -745,6 +1087,18 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen>
     setState(() {
       _index = (_index + delta) % _items.length;
       if (_index < 0) _index += _items.length;
+      _targetOverride = null;
+      _celebratedFor = null;
+      _slideCtrl.value = 1;
+    });
+  }
+
+  /// Jump straight to a preset dhikr (preset chips row, preview layout).
+  void _switchToItem(String id) {
+    final i = _items.indexWhere((t) => t.id == id);
+    if (i < 0 || i == _index) return;
+    setState(() {
+      _index = i;
       _targetOverride = null;
       _celebratedFor = null;
       _slideCtrl.value = 1;
@@ -948,7 +1302,12 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen>
             ? _item.transliteration
             : _item.englishName;
         return AppScaffold(
+          dark: true,
           appBar: AppBar(
+            backgroundColor: v33Background,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            elevation: 0,
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -982,99 +1341,91 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen>
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             child: Column(
               children: [
-                // Dhikr card: Arabic / transliteration / meaning,
-                // separated by dashed lines (reference video layout).
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 16),
-                    child: Row(
-                      children: [
-                        if (_items.length > 1)
-                          IconButton(
-                            icon: const Icon(Icons.chevron_left),
-                            onPressed: () => _switchDhikr(-1),
-                          )
-                        else
-                          const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Text(_item.arabicName,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                      fontSize: 28,
-                                      color: primaryGreen,
-                                      height: 1.8)),
-                              const SizedBox(height: 8),
-                              DashedLine(
-                                  color: Theme.of(context).dividerColor),
-                              const SizedBox(height: 10),
-                              Text(transliteration,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontStyle: FontStyle.italic)),
-                              if (meaning.isNotEmpty) ...[
-                                const SizedBox(height: 10),
-                                DashedLine(
-                                    color: Theme.of(context).dividerColor),
-                                const SizedBox(height: 10),
-                                Text(meaning,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(fontSize: 15)),
-                              ],
-                            ],
-                          ),
-                        ),
-                        if (_items.length > 1)
-                          IconButton(
-                            icon: const Icon(Icons.chevron_right),
-                            onPressed: () => _switchDhikr(1),
-                          )
-                        else
-                          const SizedBox(width: 8),
+                // Dhikr card: Arabic (gold) / transliteration /
+                // meaning, separated by dashed lines, with the
+                // prev | N/M | next navigation row inside the card
+                // (preview layout; side chevrons removed).
+                V33Card(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 16),
+                  child: Column(
+                    children: [
+                      Text(_item.arabicName,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 28,
+                              color: v33Gold,
+                              height: 1.8)),
+                      const SizedBox(height: 8),
+                      DashedLine(color: Colors.white.withOpacity(0.15)),
+                      const SizedBox(height: 10),
+                      Text(transliteration,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontStyle: FontStyle.italic,
+                              color: v33Text)),
+                      if (meaning.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        DashedLine(
+                            color: Colors.white.withOpacity(0.15)),
+                        const SizedBox(height: 10),
+                        Text(meaning,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                fontSize: 15, color: v33Sub)),
                       ],
-                    ),
+                      if (_items.length > 1) ...[
+                        const SizedBox(height: 12),
+                        Divider(
+                            height: 1,
+                            color: Colors.white.withOpacity(0.08)),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            TextButton.icon(
+                              onPressed: () => _switchDhikr(-1),
+                              icon: const Icon(Icons.chevron_left,
+                                  size: 18, color: v33GreenLight),
+                              label: Text(tr('prev_dhikr'),
+                                  style: const TextStyle(
+                                      color: v33GreenLight)),
+                            ),
+                            Expanded(
+                              child: Text('${_index + 1}/${_items.length}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      color: v33Muted, fontSize: 13)),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => _switchDhikr(1),
+                              icon: const Icon(Icons.chevron_right,
+                                  size: 18, color: v33GreenLight),
+                              label: Text(tr('next_dhikr'),
+                                  style: const TextStyle(
+                                      color: v33GreenLight)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Today's total + streak.
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _MiniStat(
-                      icon: Icons.today,
-                      label: tr('todays_total'),
-                      value: '$todayTotal',
-                    ),
-                    const SizedBox(width: 12),
-                    _MiniStat(
-                      icon: Icons.local_fire_department,
-                      label: tr('daily_streak'),
-                      value: streak == 0
-                          ? tr('no_streak_yet')
-                          : '$streak ${streak == 1 ? tr('day') : tr('days')}',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Target selector: 33 / 99 / 100 / 500 / 1000.
+                // Preset dhikr chips (preview): tap to switch dhikr.
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      for (final opt in _targetOptions)
+                      for (final t in defaultTasbihs.take(5))
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text('$opt'),
-                            selected: _target == opt,
-                            onSelected: (_) => setState(() {
-                              _targetOverride = opt;
-                              _celebratedFor = null;
-                            }),
+                          child: V33Chip(
+                            label: bn
+                                ? (_tasbihBnNames[t.id] ?? t.englishName)
+                                : t.englishName,
+                            active: _item.id == t.id,
+                            onTap: () => _switchToItem(t.id),
                           ),
                         ),
                     ],
@@ -1152,42 +1503,6 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen>
                               ),
                             ),
                           ),
-                          // Counter, top-left of the bead area.
-                          Positioned(
-                            left: 4,
-                            top: 4,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                RichText(
-                                  text: TextSpan(
-                                    style: DefaultTextStyle.of(context).style,
-                                    children: [
-                                      TextSpan(
-                                        text: '$inRound',
-                                        style: const TextStyle(
-                                            fontSize: 52,
-                                            fontWeight: FontWeight.w800,
-                                            color: primaryGreen),
-                                      ),
-                                      TextSpan(
-                                        text: '/$_target',
-                                        style: const TextStyle(
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.grey),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Text(
-                                  '${tr('rounds')}: $rounds',
-                                  style: const TextStyle(
-                                      fontSize: 16, color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ),
                           // Floating "+1" labels.
                           Align(
                             alignment: const Alignment(-0.15, 0.15),
@@ -1213,8 +1528,8 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen>
                                               style: TextStyle(
                                                 fontSize: 22,
                                                 fontWeight: FontWeight.w800,
-                                                color: primaryGreen
-                                                    .withOpacity(0.85),
+                                                color: v33GreenLight
+                                                    .withOpacity(0.9),
                                               ),
                                             ),
                                           ),
@@ -1230,19 +1545,99 @@ class _TasbihCounterScreenState extends State<TasbihCounterScreen>
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
+                // Counter row (preview): big X/target + Rounds on the
+                // left, today's total + streak on the right.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '$inRound',
+                                  style: const TextStyle(
+                                      fontSize: 44,
+                                      fontWeight: FontWeight.w800,
+                                      color: v33Text),
+                                ),
+                                TextSpan(
+                                  text: '/$_target',
+                                  style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w700,
+                                      color: v33Muted),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text('${tr('rounds')}: $rounds',
+                              style: const TextStyle(
+                                  fontSize: 15, color: v33Muted)),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('${tr('todays_total')}: $todayTotal',
+                            style: const TextStyle(
+                                fontSize: 13, color: v33Sub)),
+                        const SizedBox(height: 2),
+                        Text(
+                          streak == 0
+                              ? tr('no_streak_yet')
+                              : '${tr('daily_streak')}: $streak ${streak == 1 ? tr('day') : tr('days')}',
+                          style: const TextStyle(
+                              fontSize: 13, color: v33Sub),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // Target selector: 33 / 99 / 100 / 500 / 1000.
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (final opt in _targetOptions)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: V33Chip(
+                            label: '$opt',
+                            active: _target == opt,
+                            onTap: () => setState(() {
+                              _targetOverride = opt;
+                              _celebratedFor = null;
+                            }),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(tr('tap_hint'),
+                    textAlign: TextAlign.center,
+                    style:
+                        const TextStyle(fontSize: 12.5, color: v33Muted)),
+                const SizedBox(height: 10),
                 // Bottom-left palette + bottom-right edit (video layout).
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    TonalIconButton(
+                    V33RoundButton(
                       icon: Icons.palette,
-                      tooltip: tr('bead_color'),
-                      onPressed: _showBeadColors,
+                      onTap: _showBeadColors,
                     ),
-                    TonalIconButton(
+                    V33RoundButton(
                       icon: Icons.edit,
-                      tooltip: tr('add_custom_tasbih'),
-                      onPressed: () => showAddCustomTasbih(context),
+                      onTap: () => showAddCustomTasbih(context),
                     ),
                   ],
                 ),
@@ -1261,40 +1656,6 @@ class _Floater {
   final int key;
   final AnimationController controller;
   const _Floater({required this.key, required this.controller});
-}
-
-/// Small today-total / streak pill used above the tasbih counter.
-class _MiniStat extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _MiniStat(
-      {required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: primaryGreen.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: primaryGreen),
-          const SizedBox(width: 6),
-          Text('$label: ',
-              style: const TextStyle(fontSize: 13, color: Colors.grey)),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: primaryGreen)),
-        ],
-      ),
-    );
-  }
 }
 
 /// Completion celebration dialog: gold + green, with a widget-only
