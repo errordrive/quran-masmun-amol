@@ -697,7 +697,8 @@ class _AudioBar extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (audio.error != null && isThisSurah) ...[
+              if (audio.error != null &&
+                  audio.errorSurah == surah.number) ...[
                 Text(audio.error!,
                     style: const TextStyle(color: Colors.red, fontSize: 13)),
                 const SizedBox(height: 4),
