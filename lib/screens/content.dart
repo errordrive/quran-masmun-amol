@@ -46,7 +46,7 @@ class CategoryListScreen extends StatelessWidget {
       appBar: AppBar(title: Text(title)),
       body: ListView.builder(
         itemCount: duas.length,
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 32),
         itemBuilder: (context, i) {
           final d = duas[i];
           return ListTile(
@@ -55,7 +55,7 @@ class CategoryListScreen extends StatelessWidget {
             subtitle: Text(d.reference,
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
+            onTap: () => Navigator.of(context, rootNavigator: true).push(
               MaterialPageRoute(builder: (_) => DuaDetailScreen(dua: d)),
             ),
           );
@@ -95,7 +95,7 @@ class DuaDetailScreen extends StatelessWidget {
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             children: [
               Text(dua.arabic,
                   textAlign: TextAlign.right,
@@ -144,7 +144,7 @@ class HadithCollectionScreen extends StatelessWidget {
       appBar: AppBar(title: Text(tr('hadith'))),
       body: ListView.builder(
         itemCount: hadithCollections.length,
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 32),
         itemBuilder: (context, i) {
           final name = hadithCollections[i];
           final count = hadithsByCollection(name).length;
@@ -164,7 +164,7 @@ class HadithCollectionScreen extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: Text('$count ${tr('hadiths_count')}'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
+            onTap: () => Navigator.of(context, rootNavigator: true).push(
               MaterialPageRoute(
                   builder: (_) => HadithListScreen(collection: name)),
             ),
@@ -202,7 +202,7 @@ class HadithListScreen extends StatelessWidget {
       appBar: AppBar(title: Text(collection)),
       body: ListView.builder(
         itemCount: books.length,
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 32),
         itemBuilder: (context, bi) {
           final book = books[bi];
           final inBook = list.where((h) => h.book == book).toList();
@@ -224,7 +224,7 @@ class HadithListScreen extends StatelessWidget {
                   subtitle: Text(bn ? h.banglaMeaning : h.english,
                       maxLines: 2, overflow: TextOverflow.ellipsis),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.of(context).push(
+                  onTap: () => Navigator.of(context, rootNavigator: true).push(
                     MaterialPageRoute(
                         builder: (_) => HadithDetailScreen(hadith: h)),
                   ),
@@ -268,7 +268,7 @@ class HadithDetailScreen extends StatelessWidget {
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
             children: [
               Row(
                 children: [
@@ -332,7 +332,7 @@ class AsmaulHusnaScreen extends StatelessWidget {
       appBar: AppBar(title: Text(tr('asmaul_husna'))),
       body: ListView.builder(
         itemCount: asmaulHusna.length,
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 32),
         itemBuilder: (context, i) {
           final name = asmaulHusna[i];
           return ListTile(
@@ -537,7 +537,7 @@ class TasbihListScreen extends StatelessWidget {
               Expanded(
                 child: ListView.builder(
                   itemCount: items.length,
-                  padding: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.only(bottom: 32),
                   itemBuilder: (context, i) {
                     final t = items[i];
                     final count = state.tasbihCount(t.id);
@@ -575,7 +575,7 @@ class TasbihListScreen extends StatelessWidget {
                             const Icon(Icons.chevron_right),
                         ],
                       ),
-                      onTap: () => Navigator.of(context).push(
+                      onTap: () => Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(
                             builder: (_) => TasbihCounterScreen(item: t)),
                       ),
@@ -966,7 +966,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       subtitle: tr('search_no_results_sub'),
                     )
                   : ListView(
-                      padding: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.only(bottom: 32),
                       children: [
                         if (_surahResults.isNotEmpty) ...[
                           _groupHeader(tr('quran'), _surahResults.length),
@@ -979,7 +979,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   : s.englishName),
                               subtitle: Text(
                                   '${bn ? bnSurahMeaning(s.number) : s.englishNameTranslation} · ${s.ayahs.length} ${tr('ayahs')}'),
-                              onTap: () => Navigator.of(context).push(
+                              onTap: () => Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(
                                     builder: (_) => QuranReaderScreen(
                                         surah: s, surahs: _allSurahs)),
@@ -998,7 +998,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   bn ? h.banglaMeaning : h.english,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis),
-                              onTap: () => Navigator.of(context).push(
+                              onTap: () => Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(
                                     builder: (_) =>
                                         HadithDetailScreen(hadith: h)),
@@ -1015,7 +1015,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               subtitle: Text(d.reference,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis),
-                              onTap: () => Navigator.of(context).push(
+                              onTap: () => Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(
                                     builder: (_) =>
                                         DuaDetailScreen(dua: d)),
