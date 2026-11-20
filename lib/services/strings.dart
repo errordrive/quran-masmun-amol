@@ -82,6 +82,13 @@ const Map<String, Map<String, String>> _strings = {
     'cat_morning': 'সকাল-সন্ধ্যার আমল',
     'cat_asmaul': 'আসমাউল হুসনা',
     'cat_masnun': 'মাসনুন দুয়া',
+    'cat_qibla': 'কিবলা',
+    'cat_khatam': 'খতম ট্র্যাকার',
+    'cat_events': 'ইসলামিক ইভেন্ট',
+    'daily_hadith': 'আজকের হাদিস',
+    'qibla': 'কিবলা কম্পাস',
+    'khatam': 'খতম ট্র্যাকার',
+    'events': 'ইসলামিক ইভেন্ট',
     'all_duas': 'সব দুয়া',
     'morning_sub': 'সকাল ও সন্ধ্যার আযকার',
     'daily_sub': 'দৈনন্দিন জীবনের দুয়া',
@@ -262,6 +269,12 @@ const Map<String, Map<String, String>> _strings = {
         'Google সাইন-ইন (Firebase), আসল Play Billing কেনাকাটা ও অ্যাডমিন প্যানেলের জন্য Firebase ও Google Play Console সেটআপ লাগবে। ততদিন অ্যাপটি অতিথি হিসেবে সম্পূর্ণ চলে, আর পেমেন্ট ডেমো মোডে থাকে।',
     // Location picker
     'choose_location': 'স্থান বেছে নিন',
+    // Azan notifications (v2.0)
+    'azan_notif': 'আজান নোটিফিকেশন',
+    'azan_master': 'নামাজের সময় নোটিফিকেশন',
+    'azan_master_sub': 'পাঁচ ওয়াক্ত নামাজের সময় নোটিফিকেশন পাবেন',
+    'azan_note':
+        'ফোন রিস্টার্ট হলে অ্যাপ একবার খুললে নোটিফিকেশন আবার চালু হবে।',
     'location_sub': 'বেছে নেওয়া শহরের জন্য নামাজের সময় আপনার ডিভাইসেই হিসাব করা হয়।',
     'search_city': 'শহর খুঁজুন',
     'no_city_found': 'কোনো শহর পাওয়া যায়নি',
@@ -319,6 +332,13 @@ const Map<String, Map<String, String>> _strings = {
     'cat_morning': 'Morning & Evening Amol',
     'cat_asmaul': 'Asmaul Husna',
     'cat_masnun': 'Masnun Dua',
+    'cat_qibla': 'Qibla',
+    'cat_khatam': 'Khatam Tracker',
+    'cat_events': 'Islamic Events',
+    'daily_hadith': 'Daily Hadith',
+    'qibla': 'Qibla Compass',
+    'khatam': 'Khatam Tracker',
+    'events': 'Islamic Events',
     'all_duas': 'All duas',
     'morning_sub': 'Adhkar for morning and evening',
     'daily_sub': 'Duas for daily life',
@@ -491,6 +511,13 @@ const Map<String, Map<String, String>> _strings = {
     'about_not_yet_body':
         'Google sign-in (Firebase), real Play Billing purchases, and the admin panel need setup in Firebase and Google Play Console. Until then the app runs fully as a guest, and payments run in demo mode.',
     'choose_location': 'Choose location',
+    // Azan notifications (v2.0)
+    'azan_notif': 'Azan notifications',
+    'azan_master': 'Prayer time notifications',
+    'azan_master_sub':
+        'Get a notification at each of the five prayer times',
+    'azan_note':
+        'After a phone restart, open the app once to restart notifications.',
     'location_sub': 'Prayer times are calculated on your device for the selected city.',
     'search_city': 'Search city',
     'no_city_found': 'No city found',
